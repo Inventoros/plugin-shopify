@@ -7,11 +7,22 @@ namespace Inventoros\Plugins\Shopify;
 use Illuminate\Console\Application as Artisan;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
-use Inventoros\Plugins\Shopify\Console\PruneActivityCommand;
-use Inventoros\Plugins\Shopify\Http\Controllers\SettingsController;
-use Inventoros\Plugins\Shopify\Jobs\RecordActivity;
+use Inventoros\Plugins\Shopify\Console\PruneCommand;
+use Inventoros\Plugins\Shopify\Console\SyncCommand;
+use Inventoros\Plugins\Shopify\Http\Controllers\ActionsController;
+use Inventoros\Plugins\Shopify\Http\Controllers\PagesController;
+use Inventoros\Plugins\Shopify\Http\Controllers\WebhookController;
+use Inventoros\Plugins\Shopify\Jobs\RegisterWebhooks;
+use Inventoros\Plugins\Shopify\Jobs\RunSync;
+use Inventoros\Plugins\Shopify\Kit\Connections\ConnectionTester;
+use Inventoros\Plugins\Shopify\Kit\Kit;
+use Inventoros\Plugins\Shopify\Kit\Models\Connection;
+use Inventoros\Plugins\Shopify\Kit\Models\DeadLetter;
+use Inventoros\Plugins\Shopify\Mcp\SyncStatusTool;
+use Inventoros\Plugins\Shopify\Shopify\ShopifyConnectionTester;
+use Inventoros\Plugins\Shopify\Support\Events;
+use Inventoros\Plugins\Shopify\Support\Listeners;
 use Inventoros\Plugins\Shopify\Support\Permissions;
-use Inventoros\Plugins\Shopify\Support\Settings;
 
 /**
  * Everything the plugin registers with Inventoros, in one place.
@@ -35,29 +46,32 @@ final class ShopifyPlugin
 
     public function register(): void
     {
+        $this->registerServices();
         $this->registerTranslations();
         $this->registerPermissions();
         $this->registerRoutes();
         $this->registerPages();
         $this->registerNavigation();
         $this->registerHooks();
+        $this->registerWebhookEvents();
+        $this->registerMcpTools();
         $this->registerCommands();
         $this->registerSchedule();
     }
 
+    private function registerServices(): void
+    {
+        app()->bindIf(ConnectionTester::class, ShopifyConnectionTester::class);
+    }
+
     /**
-     * Server-side strings (flash messages, page titles) live in
-     * lang/{locale}/messages.php and are read as __('shopify::messages.key').
+     * Server strings live in lang/{locale}/messages.php: __('shopify::messages.key').
      */
     private function registerTranslations(): void
     {
         app('translator')->addNamespace(self::SLUG, $this->path.'/lang');
     }
 
-    /**
-     * Plugin permissions, when the running Inventoros can register them.
-     * Older cores fall back to an existing core permission (see Permissions).
-     */
     private function registerPermissions(): void
     {
         if (! Permissions::canRegister()) {
@@ -70,29 +84,59 @@ final class ShopifyPlugin
     }
 
     /**
-     * Write routes. Reads are plugin pages (register_page); writes are plain
-     * Laravel routes in the `web` group, so they get the session, CSRF,
-     * two-factor and locale middleware like every core form. They live under
-     * /shopify/actions so they never share a URI with a plugin page (a page
-     * whose URI is already routed, for any method, is skipped by core).
+     * Writes under /shopify/actions (web group: session, CSRF, sign-in), and
+     * the webhook inbox under /webhooks/plugins/shopify/{connection},
+     * outside the web group: Shopify signs its requests and has no session.
      */
     private function registerRoutes(): void
     {
-        Route::middleware(['web', 'auth'])
+        Route::middleware(['web', 'auth', 'throttle:120,1'])
             ->prefix(self::SLUG.'/actions')
-            ->name(self::SLUG.'.')
+            ->name(self::SLUG.'.actions.')
             ->group(function (): void {
-                Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+                Route::post('connections', [ActionsController::class, 'storeConnection'])->name('connections.store');
+                Route::post('connections/{connection}', [ActionsController::class, 'updateConnection'])->whereNumber('connection')->name('connections.update');
+                Route::post('connections/{connection}/test', [ActionsController::class, 'testConnection'])->whereNumber('connection')->name('connections.test');
+                Route::post('connections/{connection}/resume', [ActionsController::class, 'resumeConnection'])->whereNumber('connection')->name('connections.resume');
+                Route::post('connections/{connection}/sync', [ActionsController::class, 'sync'])->whereNumber('connection')->name('connections.sync');
+                Route::post('connections/{connection}/confirm-all', [ActionsController::class, 'confirmAll'])->whereNumber('connection')->name('connections.confirm-all');
+                Route::post('connections/{connection}/delete', [ActionsController::class, 'destroyConnection'])->whereNumber('connection')->name('connections.destroy');
+                Route::post('mappings/{mapping}/confirm', [ActionsController::class, 'confirmMapping'])->whereNumber('mapping')->name('mappings.confirm');
+                Route::post('mappings/{mapping}/link', [ActionsController::class, 'linkMapping'])->whereNumber('mapping')->name('mappings.link');
+                Route::post('mappings/{mapping}/ignore', [ActionsController::class, 'ignoreMapping'])->whereNumber('mapping')->name('mappings.ignore');
+                Route::post('mappings/{mapping}/reset', [ActionsController::class, 'resetMapping'])->whereNumber('mapping')->name('mappings.reset');
+                Route::post('mappings/{mapping}/resync', [ActionsController::class, 'resyncMapping'])->whereNumber('mapping')->name('mappings.resync');
+                Route::post('failed/{deadLetter}/retry', [ActionsController::class, 'retryDeadLetter'])->whereNumber('deadLetter')->name('failed.retry');
+                Route::post('failed/{deadLetter}/dismiss', [ActionsController::class, 'dismissDeadLetter'])->whereNumber('deadLetter')->name('failed.dismiss');
             });
+
+        Route::middleware(['throttle:600,1'])
+            ->post('webhooks/plugins/'.self::SLUG.'/{connection}', WebhookController::class)
+            ->whereNumber('connection')
+            ->name(self::SLUG.'.webhooks.receive');
     }
 
     private function registerPages(): void
     {
-        register_page(self::SLUG.'.settings', 'Plugin::'.self::SLUG.'/Settings', [
-            'uri' => self::SLUG.'/settings',
+        register_page(self::SLUG.'.overview', 'Plugin::'.self::SLUG.'/Overview', [
+            'uri' => self::SLUG,
             'title' => 'Shopify',
-            'permission' => Permissions::manage(),
-            'props' => fn ($request, $user) => SettingsController::pageProps($user),
+            'permission' => Permissions::view(),
+            'props' => fn ($request, $user) => PagesController::overview($request, $user),
+        ]);
+
+        register_page(self::SLUG.'.mappings', 'Plugin::'.self::SLUG.'/Mappings', [
+            'uri' => self::SLUG.'/mappings',
+            'title' => 'Shopify mappings',
+            'permission' => Permissions::view(),
+            'props' => fn ($request, $user) => PagesController::mappings($request, $user),
+        ]);
+
+        register_page(self::SLUG.'.activity', 'Plugin::'.self::SLUG.'/Activity', [
+            'uri' => self::SLUG.'/activity',
+            'title' => 'Shopify sync activity',
+            'permission' => Permissions::view(),
+            'props' => fn ($request, $user) => PagesController::activity($request, $user),
         ]);
     }
 
@@ -100,27 +144,42 @@ final class ShopifyPlugin
     {
         register_menu_item([
             'label' => 'Shopify',
-            'route' => self::SLUG.'.settings',
-            'permission' => Permissions::manage(),
-            'position' => 900,
+            'route' => self::SLUG.'.overview',
+            'permission' => Permissions::view(),
+            'position' => 270,
         ]);
     }
 
     /**
-     * React to core events. The work itself is queued: a hook runs inside the
-     * request (or job) that fired it and must stay cheap.
+     * Core change hooks only queue work (Listeners); the kit's own hooks
+     * chain follow-up work and outbound events.
      */
     private function registerHooks(): void
     {
-        add_action('low_stock_alert', static function ($product): void {
-            $organizationId = (int) $product->organization_id;
+        add_action('stock_changed', [Listeners::class, 'stockChanged']);
+        add_action('product_updated', [Listeners::class, 'catalogChanged']);
+        add_action('variant_updated', [Listeners::class, 'catalogChanged']);
 
-            if (! Settings::for($organizationId)->get('log_low_stock')) {
-                return;
-            }
-
-            RecordActivity::dispatch($organizationId, 'low_stock', (string) $product->sku);
+        add_action(Kit::HOOK_PREFIX.'connection_verified', static function (Connection $connection, ?int $userId = null): void {
+            RegisterWebhooks::dispatch($connection->id);
+            RunSync::dispatch($connection->id, ['locations'], 'initial', 'user', $userId);
         });
+
+        add_action(Kit::HOOK_PREFIX.'sync_failed', static function (Connection $connection, DeadLetter $letter): void {
+            Events::syncFailed($connection, $letter);
+        });
+    }
+
+    private function registerWebhookEvents(): void
+    {
+        Events::register();
+    }
+
+    private function registerMcpTools(): void
+    {
+        if (function_exists('register_mcp_tool')) {
+            register_mcp_tool(self::SLUG, SyncStatusTool::class, (array) Permissions::view());
+        }
     }
 
     private function registerCommands(): void
@@ -139,20 +198,14 @@ final class ShopifyPlugin
      */
     public static function commands(): array
     {
-        return [PruneActivityCommand::class];
+        return [SyncCommand::class, PruneCommand::class];
     }
 
-    /**
-     * Scheduled work runs from the core scheduler (cron on cPanel, the
-     * scheduler container in Docker). The Schedule is only built in console
-     * processes, so this costs nothing on web requests.
-     */
     private function registerSchedule(): void
     {
         $define = static function (Schedule $schedule): void {
-            $schedule->command('shopify:prune-activity')
-                ->dailyAt('04:10')
-                ->withoutOverlapping();
+            $schedule->command('shopify:sync')->everyFifteenMinutes()->withoutOverlapping();
+            $schedule->command('shopify:prune')->dailyAt('04:30')->withoutOverlapping();
         };
 
         if (app()->resolved(Schedule::class)) {

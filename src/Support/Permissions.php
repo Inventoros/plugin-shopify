@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Support;
 
+use App\Models\User;
+use App\Services\PluginUIService;
+
 /**
  * The plugin's permissions.
  *
- * Plugin permissions are named "{slug}.{ability}", so they never collide with
- * a core permission (core names never contain a dot). When the running
- * Inventoros cannot register plugin permissions (no register_permission()),
- * each ability falls back to the closest core permission, so the plugin stays
- * usable and never grants more than core already does.
+ *   shopify.view    see connections, health, mappings, history and errors
+ *   shopify.manage  connect stores, change settings and mappings, start
+ *                   syncs, retry or dismiss failed work
+ *
+ * On a core without register_permission() they fall back to view_settings
+ * and edit_settings, so the plugin never grants more than core already
+ * does.
  */
 final class Permissions
 {
+    public const VIEW = 'shopify.view';
+
     public const MANAGE = 'shopify.manage';
 
-    /**
-     * Core permission used for MANAGE when plugin permissions are unavailable.
-     */
+    public const VIEW_FALLBACK = 'view_settings';
+
     public const MANAGE_FALLBACK = 'edit_settings';
 
     public static function canRegister(): bool
@@ -33,12 +39,43 @@ final class Permissions
     public static function definitions(): array
     {
         return [
-            self::MANAGE => ['Manage Shopify', 'Can change the Shopify plugin settings'],
+            self::VIEW => ['View Shopify sync', 'See Shopify connections, sync health, mappings, history and errors'],
+            self::MANAGE => ['Manage Shopify sync', 'Connect Shopify stores, change sync settings and mappings, start syncs and retry failed work'],
         ];
+    }
+
+    /**
+     * Any of these opens the plugin's pages (managers can always view).
+     *
+     * @return array<int, string>|string
+     */
+    public static function view(): array|string
+    {
+        return self::canRegister() ? [self::VIEW, self::MANAGE] : [self::VIEW_FALLBACK, self::MANAGE_FALLBACK];
     }
 
     public static function manage(): string
     {
         return self::canRegister() ? self::MANAGE : self::MANAGE_FALLBACK;
+    }
+
+    public static function canView(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        foreach ((array) self::view() as $permission) {
+            if (PluginUIService::allows($user, $permission)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function canManage(?User $user): bool
+    {
+        return $user !== null && PluginUIService::allows($user, self::manage());
     }
 }
