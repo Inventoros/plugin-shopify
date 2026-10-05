@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Http\Controllers;
+namespace Inventoros\Plugins\Shopify\Http\Controllers;
 
 use App\Models\User;
 use App\Services\PluginUIService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Inventoros\Plugins\Starter\Jobs\RecordActivity;
-use Inventoros\Plugins\Starter\Models\Activity;
-use Inventoros\Plugins\Starter\Support\Permissions;
-use Inventoros\Plugins\Starter\Support\Settings;
+use Inventoros\Plugins\Shopify\Jobs\RecordActivity;
+use Inventoros\Plugins\Shopify\Models\Activity;
+use Inventoros\Plugins\Shopify\Support\Permissions;
+use Inventoros\Plugins\Shopify\Support\Settings;
 
 final class SettingsController extends Controller
 {
@@ -40,7 +40,7 @@ final class SettingsController extends Controller
                     'created_at' => $line->created_at?->toIso8601String(),
                 ])
                 ->all(),
-            'updateUrl' => route('starter.settings.update'),
+            'updateUrl' => route('shopify.settings.update'),
         ];
     }
 
@@ -64,6 +64,6 @@ final class SettingsController extends Controller
 
         RecordActivity::dispatch($organizationId, 'settings', 'Settings updated by '.$user->name);
 
-        return back()->with('success', __('starter::messages.saved'));
+        return back()->with('success', __('shopify::messages.saved'));
     }
 }

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Jobs;
+namespace Inventoros\Plugins\Shopify\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Inventoros\Plugins\Starter\Models\Activity;
+use Inventoros\Plugins\Shopify\Models\Activity;
 
 /**
  * Writes one activity line, off the request that triggered it.

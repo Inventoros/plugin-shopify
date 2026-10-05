@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Tests\Feature;
+namespace Inventoros\Plugins\Shopify\Tests\Feature;
 
 use App\Models\Inventory\Product;
 use App\Models\Plugin;
@@ -10,18 +10,18 @@ use App\Models\Role;
 use App\Services\PluginService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Inventoros\Plugins\Starter\Support\Migrations;
-use Inventoros\Plugins\Starter\Support\Permissions;
-use Inventoros\Plugins\Starter\Support\Settings;
-use Inventoros\Plugins\Starter\Tests\TestCase;
+use Inventoros\Plugins\Shopify\Support\Migrations;
+use Inventoros\Plugins\Shopify\Support\Permissions;
+use Inventoros\Plugins\Shopify\Support\Settings;
+use Inventoros\Plugins\Shopify\Tests\TestCase;
 
 final class LifecycleTest extends TestCase
 {
-    private const TABLES = ['plg_starter_settings', 'plg_starter_activity'];
+    private const TABLES = ['plg_shopify_settings', 'plg_shopify_activity'];
 
     public function test_activation_marks_the_plugin_active_and_creates_its_tables(): void
     {
-        $this->assertTrue((bool) Plugin::where('slug', 'starter')->value('is_active'));
+        $this->assertTrue((bool) Plugin::where('slug', 'shopify')->value('is_active'));
 
         foreach (self::TABLES as $table) {
             $this->assertTrue(Schema::hasTable($table), "{$table} should exist after activation");
@@ -30,7 +30,7 @@ final class LifecycleTest extends TestCase
 
     public function test_migrations_are_recorded_under_the_plugin_prefix(): void
     {
-        $ran = DB::table('migrations')->where('migration', 'like', '%_plg_starter_%')->pluck('migration');
+        $ran = DB::table('migrations')->where('migration', 'like', '%_plg_shopify_%')->pluck('migration');
 
         $this->assertCount(2, $ran);
     }
@@ -40,15 +40,15 @@ final class LifecycleTest extends TestCase
         Settings::for($this->organization->id)->put(['greeting' => 'Kept']);
 
         $plugins = app(PluginService::class);
-        $plugins->deactivatePlugin('starter');
+        $plugins->deactivatePlugin('shopify');
 
-        $this->assertFalse((bool) Plugin::where('slug', 'starter')->value('is_active'));
-        $this->assertTrue(Schema::hasTable('plg_starter_settings'));
+        $this->assertFalse((bool) Plugin::where('slug', 'shopify')->value('is_active'));
+        $this->assertTrue(Schema::hasTable('plg_shopify_settings'));
 
-        $plugins->activatePlugin('starter');
+        $plugins->activatePlugin('shopify');
 
         $this->assertSame('Kept', Settings::for($this->organization->id)->get('greeting'));
-        $this->assertSame(2, DB::table('migrations')->where('migration', 'like', '%_plg_starter_%')->count());
+        $this->assertSame(2, DB::table('migrations')->where('migration', 'like', '%_plg_shopify_%')->count());
     }
 
     public function test_uninstall_removes_only_what_the_plugin_created(): void
@@ -59,7 +59,7 @@ final class LifecycleTest extends TestCase
         $role = Role::where('slug', 'system-member')->firstOrFail();
         $role->update(['permissions' => ['view_products', Permissions::MANAGE]]);
 
-        $coreMigrations = DB::table('migrations')->where('migration', 'not like', '%_plg_starter_%')->count();
+        $coreMigrations = DB::table('migrations')->where('migration', 'not like', '%_plg_shopify_%')->count();
 
         $this->runUninstallHook();
 
@@ -67,7 +67,7 @@ final class LifecycleTest extends TestCase
             $this->assertFalse(Schema::hasTable($table), "{$table} should be dropped on uninstall");
         }
 
-        $this->assertSame(0, DB::table('migrations')->where('migration', 'like', '%_plg_starter_%')->count());
+        $this->assertSame(0, DB::table('migrations')->where('migration', 'like', '%_plg_shopify_%')->count());
         $this->assertSame($coreMigrations, DB::table('migrations')->count());
         $this->assertSame(['view_products'], $role->fresh()->permissions);
         $this->assertNotNull(Product::find($product->id), 'core data must survive uninstall');
@@ -79,13 +79,13 @@ final class LifecycleTest extends TestCase
         $this->runUninstallHook();
         $this->runUninstallHook();
 
-        $this->assertFalse(Schema::hasTable('plg_starter_settings'));
+        $this->assertFalse(Schema::hasTable('plg_shopify_settings'));
     }
 
     public function test_the_migrations_path_points_at_the_plugin(): void
     {
         $this->assertDirectoryExists(Migrations::path());
-        $this->assertCount(2, glob(Migrations::path().'/*_plg_starter_*.php'));
+        $this->assertCount(2, glob(Migrations::path().'/*_plg_shopify_*.php'));
     }
 
     /**

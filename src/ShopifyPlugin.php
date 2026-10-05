@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter;
+namespace Inventoros\Plugins\Shopify;
 
 use Illuminate\Console\Application as Artisan;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
-use Inventoros\Plugins\Starter\Console\PruneActivityCommand;
-use Inventoros\Plugins\Starter\Http\Controllers\SettingsController;
-use Inventoros\Plugins\Starter\Jobs\RecordActivity;
-use Inventoros\Plugins\Starter\Support\Permissions;
-use Inventoros\Plugins\Starter\Support\Settings;
+use Inventoros\Plugins\Shopify\Console\PruneActivityCommand;
+use Inventoros\Plugins\Shopify\Http\Controllers\SettingsController;
+use Inventoros\Plugins\Shopify\Jobs\RecordActivity;
+use Inventoros\Plugins\Shopify\Support\Permissions;
+use Inventoros\Plugins\Shopify\Support\Settings;
 
 /**
  * Everything the plugin registers with Inventoros, in one place.
@@ -20,9 +20,9 @@ use Inventoros\Plugins\Starter\Support\Settings;
  * may query the database at registration time: this runs on every request,
  * and before the installer has created any tables.
  */
-final class StarterPlugin
+final class ShopifyPlugin
 {
-    public const SLUG = 'starter';
+    public const SLUG = 'shopify';
 
     /**
      * @param  array<string, mixed>  $manifest
@@ -47,7 +47,7 @@ final class StarterPlugin
 
     /**
      * Server-side strings (flash messages, page titles) live in
-     * lang/{locale}/messages.php and are read as __('starter::messages.key').
+     * lang/{locale}/messages.php and are read as __('shopify::messages.key').
      */
     private function registerTranslations(): void
     {
@@ -65,7 +65,7 @@ final class StarterPlugin
         }
 
         foreach (Permissions::definitions() as $name => [$label, $description]) {
-            register_permission($name, $label, $description, 'Starter');
+            register_permission($name, $label, $description, 'Shopify');
         }
     }
 
@@ -73,7 +73,7 @@ final class StarterPlugin
      * Write routes. Reads are plugin pages (register_page); writes are plain
      * Laravel routes in the `web` group, so they get the session, CSRF,
      * two-factor and locale middleware like every core form. They live under
-     * /starter/actions so they never share a URI with a plugin page (a page
+     * /shopify/actions so they never share a URI with a plugin page (a page
      * whose URI is already routed, for any method, is skipped by core).
      */
     private function registerRoutes(): void
@@ -90,7 +90,7 @@ final class StarterPlugin
     {
         register_page(self::SLUG.'.settings', 'Plugin::'.self::SLUG.'/Settings', [
             'uri' => self::SLUG.'/settings',
-            'title' => 'Starter',
+            'title' => 'Shopify',
             'permission' => Permissions::manage(),
             'props' => fn ($request, $user) => SettingsController::pageProps($user),
         ]);
@@ -99,7 +99,7 @@ final class StarterPlugin
     private function registerNavigation(): void
     {
         register_menu_item([
-            'label' => 'Starter',
+            'label' => 'Shopify',
             'route' => self::SLUG.'.settings',
             'permission' => Permissions::manage(),
             'position' => 900,
@@ -150,7 +150,7 @@ final class StarterPlugin
     private function registerSchedule(): void
     {
         $define = static function (Schedule $schedule): void {
-            $schedule->command('starter:prune-activity')
+            $schedule->command('shopify:prune-activity')
                 ->dailyAt('04:10')
                 ->withoutOverlapping();
         };

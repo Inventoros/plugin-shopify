@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Tests\Feature;
+namespace Inventoros\Plugins\Shopify\Tests\Feature;
 
 use App\Models\Inventory\Product;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Queue;
-use Inventoros\Plugins\Starter\Jobs\RecordActivity;
-use Inventoros\Plugins\Starter\Models\Activity;
-use Inventoros\Plugins\Starter\Support\Settings;
-use Inventoros\Plugins\Starter\Tests\TestCase;
+use Inventoros\Plugins\Shopify\Jobs\RecordActivity;
+use Inventoros\Plugins\Shopify\Models\Activity;
+use Inventoros\Plugins\Shopify\Support\Settings;
+use Inventoros\Plugins\Shopify\Tests\TestCase;
 
 final class BackgroundWorkTest extends TestCase
 {
@@ -34,7 +34,7 @@ final class BackgroundWorkTest extends TestCase
     {
         RecordActivity::dispatchSync($this->organization->id, 'low_stock', 'SKU-9');
 
-        $this->assertDatabaseHas('plg_starter_activity', [
+        $this->assertDatabaseHas('plg_shopify_activity', [
             'organization_id' => $this->organization->id,
             'type' => 'low_stock',
             'message' => 'SKU-9',
@@ -47,7 +47,7 @@ final class BackgroundWorkTest extends TestCase
         $old->forceFill(['created_at' => now()->subDays(40)])->save();
         Activity::query()->create(['organization_id' => $this->organization->id, 'type' => 'note', 'message' => 'new']);
 
-        $this->artisan('starter:prune-activity', ['--days' => 30])
+        $this->artisan('shopify:prune-activity', ['--days' => 30])
             ->expectsOutput('Deleted 1 activity line.')
             ->assertSuccessful();
 
@@ -56,13 +56,13 @@ final class BackgroundWorkTest extends TestCase
 
     public function test_the_prune_command_rejects_a_bad_window(): void
     {
-        $this->artisan('starter:prune-activity', ['--days' => 0])->assertFailed();
+        $this->artisan('shopify:prune-activity', ['--days' => 0])->assertFailed();
     }
 
     public function test_the_prune_command_is_scheduled_daily(): void
     {
         $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'starter:prune-activity'));
+            ->filter(fn ($event) => str_contains((string) $event->command, 'shopify:prune-activity'));
 
         $this->assertCount(1, $events);
         $this->assertSame('10 4 * * *', $events->first()->expression);

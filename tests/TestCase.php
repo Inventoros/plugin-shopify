@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Tests;
+namespace Inventoros\Plugins\Shopify\Tests;
 
 use App\Models\Auth\Organization;
 use App\Models\Role;
@@ -13,8 +13,8 @@ use App\Support\PluginPageRoutes;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
-use Inventoros\Plugins\Starter\StarterPlugin;
-use Inventoros\Plugins\Starter\Support\Migrations;
+use Inventoros\Plugins\Shopify\ShopifyPlugin;
+use Inventoros\Plugins\Shopify\Support\Migrations;
 use Tests\TestCase as InventorosTestCase;
 
 /**
@@ -73,14 +73,14 @@ abstract class TestCase extends InventorosTestCase
 
     protected function activatePlugin(): void
     {
-        app(PluginService::class)->activatePlugin(StarterPlugin::SLUG);
+        app(PluginService::class)->activatePlugin(ShopifyPlugin::SLUG);
 
         PluginPageRoutes::register();
         Route::getRoutes()->refreshNameLookups();
         Route::getRoutes()->refreshActionLookups();
 
         $kernel = $this->app->make(Kernel::class);
-        foreach (StarterPlugin::commands() as $command) {
+        foreach (ShopifyPlugin::commands() as $command) {
             $kernel->registerCommand($this->app->make($command));
         }
     }

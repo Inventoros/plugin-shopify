@@ -7,4 +7,4 @@
 
 use Illuminate\Support\Facades\Log;
 
-Log::info('Starter plugin deactivated; its data is kept until the plugin is deleted.');
+Log::info('Shopify plugin deactivated; its data is kept until the plugin is deleted.');

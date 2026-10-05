@@ -2,34 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Tests\Feature;
+namespace Inventoros\Plugins\Shopify\Tests\Feature;
 
 use Illuminate\Support\Facades\Queue;
-use Inventoros\Plugins\Starter\Jobs\RecordActivity;
-use Inventoros\Plugins\Starter\Support\Permissions;
-use Inventoros\Plugins\Starter\Support\Settings;
-use Inventoros\Plugins\Starter\Tests\TestCase;
+use Inventoros\Plugins\Shopify\Jobs\RecordActivity;
+use Inventoros\Plugins\Shopify\Support\Permissions;
+use Inventoros\Plugins\Shopify\Support\Settings;
+use Inventoros\Plugins\Shopify\Tests\TestCase;
 
 final class SettingsPageTest extends TestCase
 {
     public function test_an_admin_sees_the_settings_page_with_defaults(): void
     {
         $this->actingAs($this->admin)
-            ->get('/starter/settings')
+            ->get('/shopify/settings')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('Plugin::starter/Settings')
+                ->component('Plugin::shopify/Settings')
                 ->where('settings.greeting', Settings::DEFAULTS['greeting'])
                 ->where('settings.log_low_stock', false)
                 ->where('activity', [])
-                ->where('updateUrl', route('starter.settings.update')));
+                ->where('updateUrl', route('shopify.settings.update')));
     }
 
     public function test_a_member_without_the_permission_is_refused(): void
     {
-        $this->actingAs($this->member)->get('/starter/settings')->assertForbidden();
+        $this->actingAs($this->member)->get('/shopify/settings')->assertForbidden();
         $this->actingAs($this->member)
-            ->put('/starter/actions/settings', ['greeting' => 'Hi', 'log_low_stock' => true])
+            ->put('/shopify/actions/settings', ['greeting' => 'Hi', 'log_low_stock' => true])
             ->assertForbidden();
     }
 
@@ -37,11 +37,11 @@ final class SettingsPageTest extends TestCase
     {
         $this->grantToMembers(Permissions::manage());
 
-        $this->actingAs($this->member)->get('/starter/settings')->assertOk();
+        $this->actingAs($this->member)->get('/shopify/settings')->assertOk();
         $this->actingAs($this->member)
-            ->from('/starter/settings')
-            ->put('/starter/actions/settings', ['greeting' => 'Hi team', 'log_low_stock' => true])
-            ->assertRedirect('/starter/settings')
+            ->from('/shopify/settings')
+            ->put('/shopify/actions/settings', ['greeting' => 'Hi team', 'log_low_stock' => true])
+            ->assertRedirect('/shopify/settings')
             ->assertSessionHas('success');
 
         $this->assertSame('Hi team', Settings::for($this->organization->id)->get('greeting'));
@@ -49,8 +49,8 @@ final class SettingsPageTest extends TestCase
 
     public function test_guests_are_sent_to_sign_in(): void
     {
-        $this->get('/starter/settings')->assertRedirect(route('login'));
-        $this->put('/starter/actions/settings', [])->assertRedirect(route('login'));
+        $this->get('/shopify/settings')->assertRedirect(route('login'));
+        $this->put('/shopify/actions/settings', [])->assertRedirect(route('login'));
     }
 
     public function test_saving_validates_and_queues_an_activity_line(): void
@@ -58,13 +58,13 @@ final class SettingsPageTest extends TestCase
         Queue::fake();
 
         $this->actingAs($this->admin)
-            ->put('/starter/actions/settings', ['greeting' => str_repeat('x', 121), 'log_low_stock' => 'maybe'])
+            ->put('/shopify/actions/settings', ['greeting' => str_repeat('x', 121), 'log_low_stock' => 'maybe'])
             ->assertSessionHasErrors(['greeting', 'log_low_stock']);
 
         Queue::assertNothingPushed();
 
         $this->actingAs($this->admin)
-            ->put('/starter/actions/settings', ['greeting' => 'Welcome', 'log_low_stock' => true])
+            ->put('/shopify/actions/settings', ['greeting' => 'Welcome', 'log_low_stock' => true])
             ->assertSessionHasNoErrors();
 
         Queue::assertPushed(RecordActivity::class, fn (RecordActivity $job) => $job->organizationId === $this->organization->id
@@ -77,10 +77,10 @@ final class SettingsPageTest extends TestCase
         $otherAdmin = $this->makeUser($other, 'admin');
 
         $this->actingAs($this->admin)
-            ->put('/starter/actions/settings', ['greeting' => 'Acme only', 'log_low_stock' => true]);
+            ->put('/shopify/actions/settings', ['greeting' => 'Acme only', 'log_low_stock' => true]);
 
         $this->actingAs($otherAdmin)
-            ->get('/starter/settings')
+            ->get('/shopify/settings')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('settings.greeting', Settings::DEFAULTS['greeting'])
@@ -97,7 +97,7 @@ final class SettingsPageTest extends TestCase
         (new RecordActivity($other->id, 'note', 'Theirs'))->handle();
 
         $this->actingAs($this->admin)
-            ->get('/starter/settings')
+            ->get('/shopify/settings')
             ->assertInertia(fn ($page) => $page
                 ->has('activity', 1)
                 ->where('activity.0.message', 'Ours'));
@@ -109,7 +109,7 @@ final class SettingsPageTest extends TestCase
             $this->actingAs($user)->get(route('dashboard'))->viewData('page')['props']['pluginMenuItems']
         )->pluck('label')->all();
 
-        $this->assertContains('Starter', $labels($this->admin));
-        $this->assertNotContains('Starter', $labels($this->member));
+        $this->assertContains('Shopify', $labels($this->admin));
+        $this->assertNotContains('Shopify', $labels($this->member));
     }
 }

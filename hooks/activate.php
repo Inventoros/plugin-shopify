@@ -6,7 +6,7 @@
  * activation and leaves the plugin inactive.
  */
 
-use Inventoros\Plugins\Starter\Support\Migrations;
+use Inventoros\Plugins\Shopify\Support\Migrations;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 

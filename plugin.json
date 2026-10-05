@@ -1,6 +1,6 @@
 {
-    "name": "Starter",
-    "description": "The Inventoros Official plugin template: settings page, a permission, a migration, a queued job, a scheduled task and a test suite that runs inside Inventoros.",
+    "name": "Shopify",
+    "description": "Connect Inventoros with Shopify for asynchronous two-way product, inventory and order sync, with webhooks, retries, mappings and sync health checks.",
     "version": "0.1.0",
     "author": "Inventoros",
     "author_url": "https://inventoros.com",
@@ -8,6 +8,8 @@
     "requires": "2.0.0",
     "requires_php": "8.4",
     "main_file": "Plugin.php",
+    "icon": "assets/icon.svg",
+    "icon_png": "assets/icon.png",
     "ui": {
         "entry": "plugin.js",
         "styles": ["plugin.css"]
@@ -15,10 +17,12 @@
     "inventoros": {
         "official": true,
         "tier": "free",
-        "namespace": "Inventoros\\Plugins\\Starter",
-        "table_prefix": "plg_starter_",
-        "permission_prefix": "starter.",
-        "route_prefix": "starter",
-        "depends": []
+        "namespace": "Inventoros\\Plugins\\Shopify",
+        "table_prefix": "plg_shopify_",
+        "permission_prefix": "shopify.",
+        "route_prefix": "shopify",
+        "depends": [],
+        "integrates_with": [],
+        "kit_version": "1.0.0"
     }
 }

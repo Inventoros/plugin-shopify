@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  PLUGIN_SLUG: starter
+  PLUGIN_SLUG: shopify
   INVENTOROS_REF: main
 
 jobs:

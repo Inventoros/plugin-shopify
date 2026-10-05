@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Support;
+namespace Inventoros\Plugins\Shopify\Support;
 
 use Illuminate\Database\Migrations\Migrator;
 

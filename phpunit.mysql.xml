@@ -2,7 +2,7 @@
 <!--
     Runs the plugin's tests inside an Inventoros checkout, from its root:
 
-        vendor/bin/phpunit -c plugins/starter/phpunit.xml
+        vendor/bin/phpunit -c plugins/shopify/phpunit.xml
 
     The environment matches the core suite (in-memory SQLite, sync queue).
     This file forces mysql; phpunit.xml runs SQLite.
@@ -13,7 +13,7 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Starter">
+        <testsuite name="Shopify">
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>

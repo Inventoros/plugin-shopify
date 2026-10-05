@@ -1,4 +1,4 @@
-// Library build for the Starter runtime UI bundle.
+// Library build for the Shopify runtime UI bundle.
 //
 // Output: ../dist/plugin.js (ES module) and ../dist/plugin.css.
 //

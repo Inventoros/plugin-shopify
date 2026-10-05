@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Support;
+namespace Inventoros\Plugins\Shopify\Support;
 
 /**
  * The plugin's permissions.
@@ -15,7 +15,7 @@ namespace Inventoros\Plugins\Starter\Support;
  */
 final class Permissions
 {
-    public const MANAGE = 'starter.manage';
+    public const MANAGE = 'shopify.manage';
 
     /**
      * Core permission used for MANAGE when plugin permissions are unavailable.
@@ -33,7 +33,7 @@ final class Permissions
     public static function definitions(): array
     {
         return [
-            self::MANAGE => ['Manage Starter', 'Can change the Starter plugin settings'],
+            self::MANAGE => ['Manage Shopify', 'Can change the Shopify plugin settings'],
         ];
     }
 

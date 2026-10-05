@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Models;
+namespace Inventoros\Plugins\Shopify\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class Setting extends Model
 {
-    protected $table = 'plg_starter_settings';
+    protected $table = 'plg_shopify_settings';
 
     protected $fillable = ['organization_id', 'key', 'value'];
 

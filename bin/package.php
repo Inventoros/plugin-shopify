@@ -15,9 +15,9 @@
 declare(strict_types=1);
 
 // The folder name inside the archive. bin/rename.php rewrites it.
-const SLUG = 'starter';
+const SLUG = 'shopify';
 
-const PACKED = ['plugin.json', 'Plugin.php', 'bootstrap.php', 'src', 'database', 'hooks', 'lang', 'dist', 'README.md', 'CHANGELOG.md', 'LICENSE'];
+const PACKED = ['plugin.json', 'Plugin.php', 'bootstrap.php', 'assets', 'src', 'database', 'hooks', 'lang', 'dist', 'README.md', 'CHANGELOG.md', 'LICENSE'];
 
 $root = dirname(__DIR__);
 $manifest = json_decode((string) file_get_contents($root.'/plugin.json'), true);

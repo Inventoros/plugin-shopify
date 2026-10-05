@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Tests\Feature;
+namespace Inventoros\Plugins\Shopify\Tests\Feature;
 
 use App\Services\Plugins\PluginRequirements;
-use Inventoros\Plugins\Starter\StarterPlugin;
-use Inventoros\Plugins\Starter\Tests\TestCase;
+use Inventoros\Plugins\Shopify\ShopifyPlugin;
+use Inventoros\Plugins\Shopify\Tests\TestCase;
 
 final class ManifestTest extends TestCase
 {
@@ -23,8 +23,8 @@ final class ManifestTest extends TestCase
 
     public function test_the_folder_is_named_after_the_slug(): void
     {
-        $this->assertSame(StarterPlugin::SLUG, basename(dirname(__DIR__, 2)));
-        $this->assertMatchesRegularExpression('/^[a-z0-9][a-z0-9-]{0,63}$/', StarterPlugin::SLUG, 'marketplace slug rule');
+        $this->assertSame(ShopifyPlugin::SLUG, basename(dirname(__DIR__, 2)));
+        $this->assertMatchesRegularExpression('/^[a-z0-9][a-z0-9-]{0,63}$/', ShopifyPlugin::SLUG, 'marketplace slug rule');
     }
 
     public function test_the_manifest_has_the_required_fields_and_a_semantic_version(): void
@@ -36,13 +36,13 @@ final class ManifestTest extends TestCase
         }
 
         $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/', $manifest['version']);
-        $this->assertSame('Inventoros\\Plugins\\Starter', $manifest['inventoros']['namespace']);
-        $this->assertSame('plg_starter_', $manifest['inventoros']['table_prefix']);
+        $this->assertSame('Inventoros\\Plugins\\Shopify', $manifest['inventoros']['namespace']);
+        $this->assertSame('plg_shopify_', $manifest['inventoros']['table_prefix']);
     }
 
     public function test_this_inventoros_meets_the_declared_requirements(): void
     {
-        PluginRequirements::assertMet($this->manifest(), 'Starter');
+        PluginRequirements::assertMet($this->manifest(), 'Shopify');
         $this->addToAssertionCount(1);
     }
 
@@ -60,11 +60,11 @@ final class ManifestTest extends TestCase
     public function test_every_table_the_plugin_creates_carries_its_prefix(): void
     {
         foreach (glob(dirname(__DIR__, 2).'/database/migrations/*.php') as $file) {
-            $this->assertStringContainsString('_plg_starter_', basename($file), 'migration file names carry the prefix');
+            $this->assertStringContainsString('_plg_shopify_', basename($file), 'migration file names carry the prefix');
 
             preg_match_all("/Schema::create\\('([^']+)'/", (string) file_get_contents($file), $matches);
             foreach ($matches[1] as $table) {
-                $this->assertStringStartsWith('plg_starter_', $table);
+                $this->assertStringStartsWith('plg_shopify_', $table);
             }
         }
     }

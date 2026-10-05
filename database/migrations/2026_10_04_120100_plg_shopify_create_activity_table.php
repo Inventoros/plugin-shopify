@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('plg_starter_activity', function (Blueprint $table) {
+        Schema::create('plg_shopify_activity', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->string('type', 40);
@@ -23,6 +23,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('plg_starter_activity');
+        Schema::dropIfExists('plg_shopify_activity');
     }
 };

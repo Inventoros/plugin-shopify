@@ -11,13 +11,13 @@
 
 use App\Models\PermissionSet;
 use App\Models\Role;
-use Inventoros\Plugins\Starter\Support\Migrations;
+use Inventoros\Plugins\Shopify\Support\Migrations;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
 Migrations::reset();
 
-$prefix = 'starter.';
+$prefix = 'shopify.';
 $strip = static function ($model) use ($prefix): void {
     $permissions = $model->permissions ?? [];
     $kept = array_values(array_filter($permissions, fn ($name) => ! str_starts_with((string) $name, $prefix)));

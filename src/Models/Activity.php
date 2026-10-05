@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Models;
+namespace Inventoros\Plugins\Shopify\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +20,7 @@ final class Activity extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $table = 'plg_starter_activity';
+    protected $table = 'plg_shopify_activity';
 
     protected $fillable = ['organization_id', 'type', 'message'];
 

@@ -15,8 +15,8 @@
 
 (static function (): void {
     $prefixes = [
-        'Inventoros\\Plugins\\Starter\\Tests\\' => __DIR__.'/tests/',
-        'Inventoros\\Plugins\\Starter\\' => __DIR__.'/src/',
+        'Inventoros\\Plugins\\Shopify\\Tests\\' => __DIR__.'/tests/',
+        'Inventoros\\Plugins\\Shopify\\' => __DIR__.'/src/',
     ];
 
     spl_autoload_register(static function (string $class) use ($prefixes): void {

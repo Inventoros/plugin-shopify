@@ -3,7 +3,7 @@
 // small fallback that reads the same messages for <html lang>, then English.
 //
 // Keys are relative to the plugin: t('settings.title') resolves
-// plugins.starter.settings.title in the app's i18n.
+// plugins.shopify.settings.title in the app's i18n.
 import en from './locales/en.json';
 
 const messages = { en };

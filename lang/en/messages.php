@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'saved' => 'Starter settings saved.',
+    'saved' => 'Shopify settings saved.',
 ];

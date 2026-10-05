@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Support;
+namespace Inventoros\Plugins\Shopify\Support;
 
-use Inventoros\Plugins\Starter\Models\Setting;
+use Inventoros\Plugins\Shopify\Models\Setting;
 
 /**
  * Per-organization settings, stored in the plugin's own table so uninstalling
@@ -18,7 +18,7 @@ final class Settings
      * @var array<string, mixed>
      */
     public const DEFAULTS = [
-        'greeting' => 'Hello from Starter',
+        'greeting' => 'Hello from Shopify',
         'log_low_stock' => false,
     ];
 
@@ -32,7 +32,7 @@ final class Settings
     public function get(string $key): mixed
     {
         if (! array_key_exists($key, self::DEFAULTS)) {
-            throw new \InvalidArgumentException("Unknown Starter setting \"{$key}\".");
+            throw new \InvalidArgumentException("Unknown Shopify setting \"{$key}\".");
         }
 
         $row = Setting::query()

@@ -1,7 +1,7 @@
 {
     "settings": {
-        "title": "Starter",
-        "description": "Settings of the Starter plugin for your organization.",
+        "title": "Shopify",
+        "description": "Settings of the Shopify plugin for your organization.",
         "greeting": "Greeting",
         "greetingHelp": "Shown at the top of this page.",
         "logLowStock": "Log low-stock alerts",

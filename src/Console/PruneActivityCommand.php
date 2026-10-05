@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Inventoros\Plugins\Starter\Console;
+namespace Inventoros\Plugins\Shopify\Console;
 
 use Illuminate\Console\Command;
-use Inventoros\Plugins\Starter\Models\Activity;
+use Inventoros\Plugins\Shopify\Models\Activity;
 
 /**
  * Deletes activity lines older than --days. Scheduled daily by the plugin.
  */
 final class PruneActivityCommand extends Command
 {
-    protected $signature = 'starter:prune-activity {--days=30 : Keep this many days of activity}';
+    protected $signature = 'shopify:prune-activity {--days=30 : Keep this many days of activity}';
 
-    protected $description = 'Delete Starter activity older than the given number of days';
+    protected $description = 'Delete Shopify activity older than the given number of days';
 
     public function handle(): int
     {

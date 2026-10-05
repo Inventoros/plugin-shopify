@@ -17,7 +17,7 @@ on:
         required: false
 
 env:
-  PLUGIN_SLUG: starter
+  PLUGIN_SLUG: shopify
   # Pin to the lowest release the plugin supports (plugin.json "requires")
   # once the core tags it; main until then.
   INVENTOROS_REF: ${{ github.event.inputs.inventoros_ref || 'main' }}
