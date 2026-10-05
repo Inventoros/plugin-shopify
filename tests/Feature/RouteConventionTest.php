@@ -95,4 +95,27 @@ final class RouteConventionTest extends TestCase
             $this->assertFalse(Route::has(substr($name, strlen('plg.'))), "the old route name {$name} without plg. is gone");
         }
     }
+
+    public function test_the_menu_items_carry_translation_keys_every_locale_defines(): void
+    {
+        $prefix = 'plugins.'.ShopifyPlugin::SLUG.'.';
+
+        $items = collect($this->actingAs($this->admin)->get(route('dashboard'))->viewData('page')['props']['pluginMenuItems'])
+            ->filter(fn (array $item) => str_starts_with((string) ($item['route'] ?? ''), 'plg.'.ShopifyPlugin::SLUG.'.'))
+            ->values();
+
+        $this->assertNotEmpty($items, 'the plugin adds a menu item');
+
+        foreach (glob(dirname(__DIR__, 2).'/ui/src/locales/*.json') as $file) {
+            $messages = json_decode((string) file_get_contents($file), true);
+
+            foreach ($items as $item) {
+                $this->assertStringStartsWith($prefix, (string) ($item['label_key'] ?? ''), "{$item['label']} has a label_key under {$prefix}");
+                $this->assertIsString(
+                    data_get($messages, substr($item['label_key'], strlen($prefix))),
+                    "{$item['label_key']} is missing from ".basename($file),
+                );
+            }
+        }
+    }
 }

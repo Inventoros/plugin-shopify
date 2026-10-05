@@ -156,6 +156,7 @@ final class ShopifyPlugin
     {
         register_menu_item([
             'label' => 'Shopify',
+            'label_key' => 'plugins.'.self::SLUG.'.nav.title',
             'route' => self::ROUTE.'overview',
             'permission' => Permissions::view(),
             'position' => 270,
