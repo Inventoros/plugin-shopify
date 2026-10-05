@@ -1,0 +1,244 @@
+/*
+ * Shopify plugin styles. Every class starts with "shopify-" and every
+ * colour is an Inventoros design token, so the pages follow the app's
+ * light and dark themes.
+ */
+.shopify-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    color: hsl(var(--text-primary));
+}
+
+.shopify-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    border-bottom: 1px solid hsl(var(--border-subtle));
+}
+
+.shopify-nav a {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(var(--text-secondary));
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.shopify-nav a:hover {
+    color: hsl(var(--text-primary));
+}
+
+.shopify-nav a[aria-current='page'] {
+    color: hsl(var(--text-primary));
+    border-bottom-color: hsl(var(--accent));
+}
+
+.shopify-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.shopify-spread {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.shopify-muted {
+    color: hsl(var(--text-secondary));
+    font-size: 0.875rem;
+}
+
+.shopify-faint {
+    color: hsl(var(--text-tertiary));
+    font-size: 0.8125rem;
+}
+
+.shopify-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    word-break: break-all;
+}
+
+.shopify-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+}
+
+.shopify-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+}
+
+.shopify-notice {
+    border: 1px solid hsl(var(--border-subtle));
+    border-left: 3px solid hsl(var(--status-warning));
+    background: hsl(var(--surface-sunken));
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.shopify-notice--danger {
+    border-left-color: hsl(var(--status-danger));
+}
+
+.shopify-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem;
+}
+
+.shopify-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.shopify-field--wide {
+    grid-column: 1 / -1;
+}
+
+.shopify-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: hsl(var(--text-secondary));
+}
+
+.shopify-input,
+.shopify-select {
+    width: 100%;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.375rem;
+    border: 1px solid hsl(var(--border-strong));
+    background: hsl(var(--surface-raised));
+    color: hsl(var(--text-primary));
+}
+
+.shopify-input:focus,
+.shopify-select:focus,
+.shopify-check input:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 1px;
+}
+
+.shopify-input--compact {
+    width: 10rem;
+    padding: 0.3125rem 0.5rem;
+}
+
+.shopify-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.shopify-error {
+    color: hsl(var(--status-danger));
+    font-size: 0.8125rem;
+}
+
+.shopify-table-wrap {
+    overflow-x: auto;
+    border: 1px solid hsl(var(--border-subtle));
+    border-radius: 0.75rem;
+    background: hsl(var(--surface-raised));
+}
+
+.shopify-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.shopify-table th,
+.shopify-table td {
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border-subtle));
+    text-align: left;
+    vertical-align: top;
+}
+
+.shopify-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.shopify-table th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: hsl(var(--text-tertiary));
+    white-space: nowrap;
+}
+
+.shopify-table tr.shopify-selected td {
+    background: hsl(var(--surface-sunken));
+}
+
+.shopify-nowrap {
+    white-space: nowrap;
+}
+
+.shopify-empty {
+    padding: 1.5rem;
+    color: hsl(var(--text-tertiary));
+    font-size: 0.875rem;
+}
+
+.shopify-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.shopify-chip {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--border-subtle));
+    background: hsl(var(--surface-raised));
+    color: hsl(var(--text-secondary));
+    text-decoration: none;
+}
+
+.shopify-chip[aria-current='true'] {
+    border-color: hsl(var(--accent));
+    color: hsl(var(--text-primary));
+    font-weight: 600;
+}
+
+.shopify-link {
+    color: hsl(var(--accent));
+    text-decoration: none;
+}
+
+.shopify-link:hover {
+    text-decoration: underline;
+}
+
+.shopify-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .shopify-table th,
+    .shopify-table td {
+        padding: 0.5rem;
+    }
+}
