@@ -1,0 +1,14 @@
+{
+    "settings": {
+        "title": "Starter",
+        "description": "Settings of the Starter plugin for your organization.",
+        "greeting": "Greeting",
+        "greetingHelp": "Shown at the top of this page.",
+        "logLowStock": "Log low-stock alerts",
+        "logLowStockHelp": "Adds a line to the activity log when a product drops to its minimum stock.",
+        "save": "Save settings",
+        "saving": "Saving...",
+        "activity": "Recent activity",
+        "noActivity": "Nothing has happened yet."
+    }
+}

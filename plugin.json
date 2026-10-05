@@ -1,0 +1,24 @@
+{
+    "name": "Starter",
+    "description": "The Inventoros Official plugin template: settings page, a permission, a migration, a queued job, a scheduled task and a test suite that runs inside Inventoros.",
+    "version": "0.1.0",
+    "author": "Inventoros",
+    "author_url": "https://inventoros.com",
+    "license": "AGPL-3.0-or-later",
+    "requires": "2.0.0",
+    "requires_php": "8.4",
+    "main_file": "Plugin.php",
+    "ui": {
+        "entry": "plugin.js",
+        "styles": ["plugin.css"]
+    },
+    "inventoros": {
+        "official": true,
+        "tier": "free",
+        "namespace": "Inventoros\\Plugins\\Starter",
+        "table_prefix": "plg_starter_",
+        "permission_prefix": "starter.",
+        "route_prefix": "starter",
+        "depends": []
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "name": "inventoros-plugin-starter-ui",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.5",
+        "vite": "^7.3.6",
+        "vue": "^3.5.0"
+    }
+}
