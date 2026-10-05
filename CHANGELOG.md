@@ -4,6 +4,19 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-05
+
+### Changed
+
+- Route names are now `plg.shopify.*`, and the pages and write actions sit under `/p/shopify/` (the overview moves from `/shopify` to `/p/shopify`). Newer cores reserve unprefixed URIs for the application and refuse plugins that use them; update bookmarks after upgrading. The webhook address, `/webhooks/plugins/shopify/{connection}`, is unchanged, so existing store subscriptions keep delivering.
+- On cores whose `OrderService::cancel()` takes an actor (Inventoros#254), Shopify cancellations restock as the connection's user without signing anyone in. Older cores keep the previous behaviour.
+- The sidebar item is translated in all 14 languages on cores that translate plugin menu items.
+
+### Fixed
+
+- **Match again** on a product mapping failed with a server error (the mapping has no `connection` relation); it now loads the connection explicitly and suggests the SKU match again.
+- CI installs the core's dependencies before placing the plugin in `plugins/`, so composer no longer warns about the plugin's classes.
+
 ## [1.0.0] - 2026-10-05
 
 ### Added

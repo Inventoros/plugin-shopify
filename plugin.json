@@ -1,7 +1,7 @@
 {
     "name": "Shopify",
     "description": "Connect Inventoros with Shopify for asynchronous two-way product, inventory and order sync, with webhooks, retries, mappings and sync health checks.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "Inventoros",
     "author_url": "https://inventoros.com",
     "license": "AGPL-3.0-or-later",
