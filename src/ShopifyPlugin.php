@@ -36,6 +36,16 @@ final class ShopifyPlugin
     public const SLUG = 'shopify';
 
     /**
+     * Prefix of every route name the plugin registers (core never uses plg.*).
+     */
+    public const ROUTE = 'plg.'.self::SLUG.'.';
+
+    /**
+     * URI of the plugin's pages and web routes (core never uses /p/).
+     */
+    public const URI = 'p/'.self::SLUG;
+
+    /**
      * @param  array<string, mixed>  $manifest
      */
     public function __construct(
@@ -84,15 +94,17 @@ final class ShopifyPlugin
     }
 
     /**
-     * Writes under /shopify/actions (web group: session, CSRF, sign-in), and
-     * the webhook inbox under /webhooks/plugins/shopify/{connection},
+     * Writes under /p/shopify/actions (web group: session, CSRF, sign-in),
+     * and the webhook inbox under /webhooks/plugins/shopify/{connection},
      * outside the web group: Shopify signs its requests and has no session.
+     * The inbox address is the same as in 1.0.0, so the subscriptions stores
+     * already registered keep delivering; only its route name changed.
      */
     private function registerRoutes(): void
     {
         Route::middleware(['web', 'auth', 'throttle:120,1'])
-            ->prefix(self::SLUG.'/actions')
-            ->name(self::SLUG.'.actions.')
+            ->prefix(self::URI.'/actions')
+            ->name(self::ROUTE.'actions.')
             ->group(function (): void {
                 Route::post('connections', [ActionsController::class, 'storeConnection'])->name('connections.store');
                 Route::post('connections/{connection}', [ActionsController::class, 'updateConnection'])->whereNumber('connection')->name('connections.update');
@@ -113,27 +125,27 @@ final class ShopifyPlugin
         Route::middleware(['throttle:600,1'])
             ->post('webhooks/plugins/'.self::SLUG.'/{connection}', WebhookController::class)
             ->whereNumber('connection')
-            ->name(self::SLUG.'.webhooks.receive');
+            ->name(self::ROUTE.'webhooks.receive');
     }
 
     private function registerPages(): void
     {
-        register_page(self::SLUG.'.overview', 'Plugin::'.self::SLUG.'/Overview', [
-            'uri' => self::SLUG,
+        register_page(self::ROUTE.'overview', 'Plugin::'.self::SLUG.'/Overview', [
+            'uri' => self::URI,
             'title' => 'Shopify',
             'permission' => Permissions::view(),
             'props' => fn ($request, $user) => PagesController::overview($request, $user),
         ]);
 
-        register_page(self::SLUG.'.mappings', 'Plugin::'.self::SLUG.'/Mappings', [
-            'uri' => self::SLUG.'/mappings',
+        register_page(self::ROUTE.'mappings', 'Plugin::'.self::SLUG.'/Mappings', [
+            'uri' => self::URI.'/mappings',
             'title' => 'Shopify mappings',
             'permission' => Permissions::view(),
             'props' => fn ($request, $user) => PagesController::mappings($request, $user),
         ]);
 
-        register_page(self::SLUG.'.activity', 'Plugin::'.self::SLUG.'/Activity', [
-            'uri' => self::SLUG.'/activity',
+        register_page(self::ROUTE.'activity', 'Plugin::'.self::SLUG.'/Activity', [
+            'uri' => self::URI.'/activity',
             'title' => 'Shopify sync activity',
             'permission' => Permissions::view(),
             'props' => fn ($request, $user) => PagesController::activity($request, $user),
@@ -144,7 +156,7 @@ final class ShopifyPlugin
     {
         register_menu_item([
             'label' => 'Shopify',
-            'route' => self::SLUG.'.overview',
+            'route' => self::ROUTE.'overview',
             'permission' => Permissions::view(),
             'position' => 270,
         ]);

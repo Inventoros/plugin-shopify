@@ -117,7 +117,7 @@ final class InventoryPushTest extends TestCase
 
         // Shopify is back: retrying from the error list pushes the current quantity.
         $this->store->refresh()->forceFill(['paused_until' => null])->save();
-        $this->actingAs($this->admin)->post(route('shopify.actions.failed.retry', $letter))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.failed.retry', $letter))->assertRedirect();
 
         $this->assertSame(['4001@1001' => 7, '4001@1002' => 0], array_slice($this->pushed(), 0, 2, true));
         $this->assertSame(0, OutboxEntry::query()->count());

@@ -189,7 +189,7 @@ final class RetryAndRateLimitTest extends TestCase
         Http::assertNothingSent();
         $this->assertSame(1, OutboxEntry::query()->count());
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.resume', $store))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.resume', $store))->assertRedirect();
         $this->assertTrue($this->store->fresh()->canSync());
     }
 

@@ -40,7 +40,7 @@ final class SyncRunTest extends TestCase
     public function test_the_initial_sync_records_one_run_per_resource_in_order(): void
     {
         $this->actingAs($this->admin)
-            ->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'all', 'mode' => 'initial'])
+            ->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'all', 'mode' => 'initial'])
             ->assertRedirect();
 
         $runs = SyncRun::query()->where('type', 'initial')->orderBy('id')->get();
@@ -86,7 +86,7 @@ final class SyncRunTest extends TestCase
         $washer = $this->product('WASH-1', 'Washer', 12, $this->binA);
         app(\Inventoros\Plugins\Shopify\Kit\Mapping\MappingStore::class)->link($this->mapping('variant', '3005'), 'product', $washer->id);
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.failed.retry', $letter))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.failed.retry', $letter))->assertRedirect();
 
         $this->assertSame(3, $this->shopifyOrders()->count());
         $this->assertSame(2, $washer->fresh()->stock);
@@ -171,7 +171,7 @@ final class SyncRunTest extends TestCase
         $this->mapCatalog();
         $mapping = app(\Inventoros\Plugins\Shopify\Kit\Mapping\MappingStore::class)->remember($this->store, 'order', '5002', ['external_label' => '#1002']);
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.resync', $mapping))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.mappings.resync', $mapping))->assertRedirect();
 
         Queue::assertPushed(ImportOrder::class, fn (ImportOrder $job) => $job->orderId === '5002');
     }

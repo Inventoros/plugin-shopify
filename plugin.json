@@ -20,7 +20,8 @@
         "namespace": "Inventoros\\Plugins\\Shopify",
         "table_prefix": "plg_shopify_",
         "permission_prefix": "shopify.",
-        "route_prefix": "shopify",
+        "route_name_prefix": "plg.shopify.",
+        "uri_prefix": "p/shopify",
         "depends": [],
         "integrates_with": [],
         "kit_version": "1.0.0"

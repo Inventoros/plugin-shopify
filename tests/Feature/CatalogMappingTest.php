@@ -58,7 +58,7 @@ final class CatalogMappingTest extends TestCase
         \App\Models\Inventory\StockAdjustment::adjust($this->bolt->fresh(), -1, 'manual', 'test', null, null, true, $this->admin, $this->binA->id);
         $this->assertSame(0, $this->shopify->callsTo('setInventoryQuantities'));
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.confirm-all', $this->store))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.confirm-all', $this->store))->assertRedirect();
 
         $this->assertSame(Mapping::MAPPED, $this->statusOf('3001'));
         $this->assertSame(Mapping::MAPPED, $this->statusOf('3003'));
@@ -82,7 +82,7 @@ final class CatalogMappingTest extends TestCase
         RunSync::dispatch($this->store->id, ['products'], 'initial', 'user', $this->admin->id);
 
         $this->actingAs($this->admin)
-            ->post(route('shopify.actions.mappings.link', $this->mapping('variant', '3006')), ['sku' => 'BOLT-1'])
+            ->post(route('plg.shopify.actions.mappings.link', $this->mapping('variant', '3006')), ['sku' => 'BOLT-1'])
             ->assertSessionHasErrors('sku');
 
         $this->assertSame(Mapping::CONFLICT, $this->statusOf('3006'));
@@ -94,8 +94,8 @@ final class CatalogMappingTest extends TestCase
         RunSync::dispatch($this->store->id, ['products'], 'initial', 'user', $this->admin->id);
         $washer = $this->product('WASH-1', 'Washer', 2, $this->binA);
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.ignore', $this->mapping('variant', '3006')))->assertRedirect();
-        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.link', $this->mapping('variant', '3005')), ['sku' => 'WASH-1'])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.mappings.ignore', $this->mapping('variant', '3006')))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.mappings.link', $this->mapping('variant', '3005')), ['sku' => 'WASH-1'])->assertSessionHasNoErrors();
 
         $this->assertSame(Mapping::IGNORED, $this->statusOf('3006'));
         $this->assertSame(Mapping::MAPPED, $this->statusOf('3005'));
@@ -106,10 +106,10 @@ final class CatalogMappingTest extends TestCase
     {
         RunSync::dispatch($this->store->id, ['products'], 'initial', 'user', $this->admin->id);
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.ignore', $this->mapping('variant', '3001')))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.mappings.ignore', $this->mapping('variant', '3001')))->assertRedirect();
         $this->assertSame(Mapping::IGNORED, $this->statusOf('3001'));
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.reset', $this->mapping('variant', '3001')))
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.mappings.reset', $this->mapping('variant', '3001')))
             ->assertRedirect()
             ->assertSessionHas('success');
 

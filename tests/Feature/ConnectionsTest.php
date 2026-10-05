@@ -49,7 +49,7 @@ final class ConnectionsTest extends TestCase
         url()->forceRootUrl('https://inventory.example.com');
         url()->forceScheme('https');
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors()->assertRedirect();
 
         $connection = Connection::query()->sole();
         $this->assertSame('acme-store.myshopify.com', $connection->shop_domain);
@@ -70,7 +70,7 @@ final class ConnectionsTest extends TestCase
 
     public function test_webhooks_are_not_registered_on_a_non_public_address(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
 
         $this->assertSame([], $this->shopify->subscriptions);
         $this->assertTrue(SyncLog::query()->where('action', 'webhooks')->where('message', 'like', '%public https address%')->exists());
@@ -80,7 +80,7 @@ final class ConnectionsTest extends TestCase
     {
         $this->shopify->failNext('shop', new PermanentError('Shopify refused the access token (HTTP 401).', authentication: true));
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
 
         $connection = Connection::query()->sole();
         $this->assertSame(Connection::ERROR, $connection->status);
@@ -92,7 +92,7 @@ final class ConnectionsTest extends TestCase
     {
         foreach (['evil.example.com', '127.0.0.1', 'acme.myshopify.com.evil.io', 'http://10.0.0.1/admin', ''] as $domain) {
             $this->actingAs($this->admin)
-                ->post(route('shopify.actions.connections.store'), $this->form(['shop_domain' => $domain]))
+                ->post(route('plg.shopify.actions.connections.store'), $this->form(['shop_domain' => $domain]))
                 ->assertSessionHasErrors('shop_domain');
         }
 
@@ -101,23 +101,23 @@ final class ConnectionsTest extends TestCase
 
     public function test_a_bare_store_handle_gets_the_myshopify_suffix(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form(['shop_domain' => 'acme-store']))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form(['shop_domain' => 'acme-store']))->assertSessionHasNoErrors();
 
         $this->assertSame('acme-store.myshopify.com', Connection::query()->sole()->shop_domain);
     }
 
     public function test_the_same_store_cannot_be_connected_twice_by_one_organization(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasErrors('shop_domain');
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasErrors('shop_domain');
     }
 
     public function test_updating_settings_keeps_credentials_left_blank_and_never_changes_the_shop(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
         $connection = Connection::query()->sole();
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.update', $connection), $this->form([
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.update', $connection), $this->form([
             'name' => 'Renamed',
             'shop_domain' => 'other-store.myshopify.com',
             'access_token' => '',
@@ -138,9 +138,9 @@ final class ConnectionsTest extends TestCase
 
     public function test_the_page_never_receives_credentials(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form())->assertSessionHasNoErrors();
 
-        $response = $this->actingAs($this->admin)->get('/shopify')->assertOk();
+        $response = $this->actingAs($this->admin)->get('/p/shopify')->assertOk();
 
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
         $this->assertStringNotContainsString(self::SECRET, $response->getContent());
@@ -153,13 +153,13 @@ final class ConnectionsTest extends TestCase
 
     public function test_removing_a_connection_keeps_the_orders_it_imported(): void
     {
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.store'), $this->form(['orders_since' => '2026-01-01']))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.store'), $this->form(['orders_since' => '2026-01-01']))->assertSessionHasNoErrors();
         $connection = Connection::query()->sole();
         $this->mapLocations($connection);
         $this->mapCatalog($connection);
         $this->webhook('orders/create', $this->payload('orders_create'), [], $connection)->assertOk();
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.connections.destroy', $connection))->assertRedirect(route('shopify.overview'));
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.connections.destroy', $connection))->assertRedirect(route('plg.shopify.overview'));
 
         $this->assertSame(0, Connection::query()->count());
         $this->assertSame(0, Mapping::query()->count());

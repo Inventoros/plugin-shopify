@@ -32,7 +32,7 @@ use Inventoros\Plugins\Shopify\Sync\OrderImporter;
 use InvalidArgumentException;
 
 /**
- * Every write the pages make, under /shopify/actions (web group: session,
+ * Every write the pages make, under /p/shopify/actions (web group: session,
  * CSRF, sign-in). Each one checks shopify.manage on the server and loads
  * records only from the user's organization (another organization's id is
  * a 404). Nothing here calls Shopify: tests and syncs are queued.
@@ -127,7 +127,7 @@ final class ActionsController extends Controller
         // orders and stock changes it made are core records and stay.
         $this->connection($request, $connection)->delete();
 
-        return redirect()->route('shopify.overview')->with('success', __('shopify::messages.connection_removed'));
+        return redirect()->route('plg.shopify.overview')->with('success', __('shopify::messages.connection_removed'));
     }
 
     public function sync(Request $request, int $connection): RedirectResponse

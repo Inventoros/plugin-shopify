@@ -206,10 +206,10 @@ final class OrderWebhooksTest extends TestCase
 
         $washer = $this->product('WASH-1', 'Washer', 30, $this->binA);
         $this->actingAs($this->admin)
-            ->post(route('shopify.actions.mappings.link', $this->mapping('variant', '3005')), ['sku' => 'WASH-1'])
+            ->post(route('plg.shopify.actions.mappings.link', $this->mapping('variant', '3005')), ['sku' => 'WASH-1'])
             ->assertSessionHasNoErrors();
 
-        $this->actingAs($this->admin)->post(route('shopify.actions.failed.retry', $letter))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('plg.shopify.actions.failed.retry', $letter))->assertRedirect();
 
         $this->assertSame(1, $this->orders()->count());
         $this->assertSame(20, $washer->fresh()->stock);

@@ -7,6 +7,7 @@ namespace Inventoros\Plugins\Shopify\Tests\Feature;
 use App\Models\Order\Order;
 use Inventoros\Plugins\Shopify\Kit\Models\Connection;
 use Inventoros\Plugins\Shopify\Kit\Models\WebhookInboxEntry;
+use Inventoros\Plugins\Shopify\Jobs\RegisterWebhooks;
 use Inventoros\Plugins\Shopify\Kit\Webhooks\HmacSignature;
 use Inventoros\Plugins\Shopify\Tests\Concerns\ShopifyWorld;
 use Inventoros\Plugins\Shopify\Tests\TestCase;
@@ -33,6 +34,14 @@ final class WebhookSecurityTest extends TestCase
         $this->assertSame(0, WebhookInboxEntry::query()->count(), 'a refused delivery is never stored');
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
         $this->assertSame(10, $this->bolt->fresh()->stock);
+    }
+
+    public function test_the_webhook_address_stores_subscribe_to_is_unchanged_since_1_0_0(): void
+    {
+        // Stores connected on 1.0.0 hold subscriptions to this address;
+        // moving it would silently stop their deliveries.
+        $this->assertSame(url('/webhooks/plugins/shopify/'.$this->store->id), RegisterWebhooks::callbackUrl($this->store));
+        $this->webhook('orders/create', $this->payload('orders_create'))->assertOk();
     }
 
     public function test_a_wrong_signature_is_rejected(): void

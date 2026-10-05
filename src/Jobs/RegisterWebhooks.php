@@ -38,7 +38,7 @@ class RegisterWebhooks extends IntegrationJob
 
     public static function callbackUrl(Connection $connection): string
     {
-        return route('shopify.webhooks.receive', ['connection' => $connection->id]);
+        return route('plg.shopify.webhooks.receive', ['connection' => $connection->id]);
     }
 
     protected function perform(Connection $connection): void

@@ -31,28 +31,28 @@ test('shopify screenshots', async ({ page }, info) => {
     const project = info.project.name;
     await signIn(page);
 
-    await page.goto('/shopify', { waitUntil: 'networkidle' });
+    await page.goto('/p/shopify', { waitUntil: 'networkidle' });
     await expect(page.getByText('acme-store.myshopify.com').first()).toBeVisible();
     await shot(page, 'overview', project);
 
-    await page.goto(`/shopify/mappings?connection=${connection}`, { waitUntil: 'networkidle' });
+    await page.goto(`/p/shopify/mappings?connection=${connection}`, { waitUntil: 'networkidle' });
     await expect(page.getByText('BOLT-1').first()).toBeVisible();
     await shot(page, 'mappings', project);
 
     if (project === 'desktop') {
-        await page.goto(`/shopify/mappings?connection=${connection}&entity=location`, { waitUntil: 'networkidle' });
+        await page.goto(`/p/shopify/mappings?connection=${connection}&entity=location`, { waitUntil: 'networkidle' });
         await shot(page, 'locations', project);
 
-        await page.goto(`/shopify/activity?connection=${connection}`, { waitUntil: 'networkidle' });
+        await page.goto(`/p/shopify/activity?connection=${connection}`, { waitUntil: 'networkidle' });
         await page.getByRole('link', { name: 'Details' }).first().click();
         await page.waitForLoadState('networkidle');
         await shot(page, 'history', project);
 
-        await page.goto(`/shopify/activity?connection=${connection}&tab=failed`, { waitUntil: 'networkidle' });
+        await page.goto(`/p/shopify/activity?connection=${connection}&tab=failed`, { waitUntil: 'networkidle' });
         await expect(page.getByText('#1003').first()).toBeVisible();
         await shot(page, 'failed', project);
 
-        await page.goto('/shopify', { waitUntil: 'networkidle' });
+        await page.goto('/p/shopify', { waitUntil: 'networkidle' });
         await page.getByRole('button', { name: 'Connect another store' }).click();
         await shot(page, 'connect', project);
     }

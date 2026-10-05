@@ -32,8 +32,8 @@ final class PermissionsAndIsolationTest extends TestCase
 
     public function test_guests_are_sent_to_sign_in(): void
     {
-        $this->get('/shopify')->assertRedirect();
-        $this->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertRedirect();
+        $this->get('/p/shopify')->assertRedirect();
+        $this->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertRedirect();
         $this->assertSame(0, $this->shopify->callsTo('products'));
     }
 
@@ -41,25 +41,25 @@ final class PermissionsAndIsolationTest extends TestCase
     {
         $user = $this->worker(['view_products', 'view_orders']);
 
-        foreach (['/shopify', '/shopify/mappings', '/shopify/activity'] as $page) {
+        foreach (['/p/shopify', '/p/shopify/mappings', '/p/shopify/activity'] as $page) {
             $this->actingAs($user)->get($page)->assertForbidden();
         }
 
-        $this->actingAs($user)->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertForbidden();
-        $this->actingAs($user)->post(route('shopify.actions.connections.store'), ['name' => 'x'])->assertForbidden();
+        $this->actingAs($user)->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertForbidden();
+        $this->actingAs($user)->post(route('plg.shopify.actions.connections.store'), ['name' => 'x'])->assertForbidden();
     }
 
     public function test_view_only_users_see_the_pages_but_cannot_change_anything(): void
     {
         $viewer = $this->worker([Permissions::VIEW]);
 
-        $this->actingAs($viewer)->get('/shopify')->assertOk()->assertInertia(fn ($page) => $page->where('canManage', false));
-        $this->actingAs($viewer)->get('/shopify/mappings')->assertOk();
-        $this->actingAs($viewer)->get('/shopify/activity')->assertOk();
+        $this->actingAs($viewer)->get('/p/shopify')->assertOk()->assertInertia(fn ($page) => $page->where('canManage', false));
+        $this->actingAs($viewer)->get('/p/shopify/mappings')->assertOk();
+        $this->actingAs($viewer)->get('/p/shopify/activity')->assertOk();
 
-        $this->actingAs($viewer)->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertForbidden();
-        $this->actingAs($viewer)->post(route('shopify.actions.mappings.ignore', $this->mapping('variant', '3001')))->assertForbidden();
-        $this->actingAs($viewer)->post(route('shopify.actions.connections.destroy', $this->store))->assertForbidden();
+        $this->actingAs($viewer)->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertForbidden();
+        $this->actingAs($viewer)->post(route('plg.shopify.actions.mappings.ignore', $this->mapping('variant', '3001')))->assertForbidden();
+        $this->actingAs($viewer)->post(route('plg.shopify.actions.connections.destroy', $this->store))->assertForbidden();
         $this->assertNotNull($this->store->fresh());
     }
 
@@ -67,8 +67,8 @@ final class PermissionsAndIsolationTest extends TestCase
     {
         $manager = $this->worker([Permissions::MANAGE]);
 
-        $this->actingAs($manager)->get('/shopify')->assertOk()->assertInertia(fn ($page) => $page->where('canManage', true));
-        $this->actingAs($manager)->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'products'])->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($manager)->get('/p/shopify')->assertOk()->assertInertia(fn ($page) => $page->where('canManage', true));
+        $this->actingAs($manager)->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'products'])->assertSessionHasNoErrors()->assertRedirect();
         $this->assertGreaterThan(0, $this->shopify->callsTo('products'));
     }
 
@@ -81,15 +81,15 @@ final class PermissionsAndIsolationTest extends TestCase
             'payload' => ['job' => 'x', 'args' => []], 'error' => 'boom', 'failed_at' => now(),
         ]);
 
-        $this->actingAs($intruder)->get('/shopify')->assertOk()->assertInertia(fn ($page) => $page->has('connections', 0));
-        $this->actingAs($intruder)->get('/shopify/mappings?connection='.$this->store->id)->assertOk()->assertInertia(fn ($page) => $page->where('connection', null)->has('rows', 0));
-        $this->actingAs($intruder)->get('/shopify/activity?connection='.$this->store->id.'&tab=failed')->assertOk()->assertInertia(fn ($page) => $page->has('deadLetters', 0));
+        $this->actingAs($intruder)->get('/p/shopify')->assertOk()->assertInertia(fn ($page) => $page->has('connections', 0));
+        $this->actingAs($intruder)->get('/p/shopify/mappings?connection='.$this->store->id)->assertOk()->assertInertia(fn ($page) => $page->where('connection', null)->has('rows', 0));
+        $this->actingAs($intruder)->get('/p/shopify/activity?connection='.$this->store->id.'&tab=failed')->assertOk()->assertInertia(fn ($page) => $page->has('deadLetters', 0));
 
-        $this->actingAs($intruder)->post(route('shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertNotFound();
-        $this->actingAs($intruder)->post(route('shopify.actions.connections.update', $this->store), ['name' => 'Mine'])->assertNotFound();
-        $this->actingAs($intruder)->post(route('shopify.actions.connections.destroy', $this->store))->assertNotFound();
-        $this->actingAs($intruder)->post(route('shopify.actions.mappings.link', $this->mapping('variant', '3001')), ['sku' => 'BOLT-1'])->assertNotFound();
-        $this->actingAs($intruder)->post(route('shopify.actions.failed.retry', $letter))->assertNotFound();
+        $this->actingAs($intruder)->post(route('plg.shopify.actions.connections.sync', $this->store), ['resource' => 'all'])->assertNotFound();
+        $this->actingAs($intruder)->post(route('plg.shopify.actions.connections.update', $this->store), ['name' => 'Mine'])->assertNotFound();
+        $this->actingAs($intruder)->post(route('plg.shopify.actions.connections.destroy', $this->store))->assertNotFound();
+        $this->actingAs($intruder)->post(route('plg.shopify.actions.mappings.link', $this->mapping('variant', '3001')), ['sku' => 'BOLT-1'])->assertNotFound();
+        $this->actingAs($intruder)->post(route('plg.shopify.actions.failed.retry', $letter))->assertNotFound();
 
         $this->assertSame('Acme Store', $this->store->fresh()->name);
     }

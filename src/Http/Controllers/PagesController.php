@@ -18,6 +18,7 @@ use Inventoros\Plugins\Shopify\Kit\Models\Mapping;
 use Inventoros\Plugins\Shopify\Kit\Models\SyncLog;
 use Inventoros\Plugins\Shopify\Kit\Models\SyncRun;
 use Inventoros\Plugins\Shopify\Shopify\ShopifyClient;
+use Inventoros\Plugins\Shopify\ShopifyPlugin;
 use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Support\Core;
 use Inventoros\Plugins\Shopify\Support\Permissions;
@@ -214,11 +215,11 @@ final class PagesController
     private static function urls(): array
     {
         return [
-            'overview' => route('shopify.overview'),
-            'mappings' => route('shopify.mappings'),
-            'activity' => route('shopify.activity'),
-            'connections' => route('shopify.actions.connections.store'),
-            'actions' => url('shopify/actions'),
+            'overview' => route('plg.shopify.overview'),
+            'mappings' => route('plg.shopify.mappings'),
+            'activity' => route('plg.shopify.activity'),
+            'connections' => route('plg.shopify.actions.connections.store'),
+            'actions' => url(ShopifyPlugin::URI.'/actions'),
         ];
     }
 
