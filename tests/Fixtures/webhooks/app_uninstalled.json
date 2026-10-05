@@ -1,0 +1,8 @@
+{
+  "id": 77001,
+  "name": "Acme Store",
+  "email": "owner@acme.example",
+  "domain": "acme-store.myshopify.com",
+  "myshopify_domain": "acme-store.myshopify.com",
+  "currency": "USD"
+}

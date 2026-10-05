@@ -1,0 +1,63 @@
+{
+  "data": {
+    "products": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Product/2001",
+          "title": "Hex bolt",
+          "status": "ACTIVE",
+          "updatedAt": "2026-10-01T09:00:00Z",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/3001",
+                "sku": "BOLT-1",
+                "title": "Default Title",
+                "price": "4.00",
+                "barcode": "0123456789012",
+                "selectedOptions": [{ "name": "Title", "value": "Default Title" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4001" }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://shopify/Product/2002",
+          "title": "T-shirt",
+          "status": "ACTIVE",
+          "updatedAt": "2026-10-01T09:05:00Z",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/3002",
+                "sku": "TEE-S",
+                "title": "S",
+                "price": "15.00",
+                "barcode": null,
+                "selectedOptions": [{ "name": "Size", "value": "S" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4002" }
+              },
+              {
+                "id": "gid://shopify/ProductVariant/3003",
+                "sku": "TEE-M",
+                "title": "M",
+                "price": "15.00",
+                "barcode": null,
+                "selectedOptions": [{ "name": "Size", "value": "M" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4003" }
+              }
+            ]
+          }
+        }
+      ],
+      "pageInfo": { "hasNextPage": true, "endCursor": "cursor-page-1" }
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 252,
+      "actualQueryCost": 14,
+      "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1986, "restoreRate": 100.0 }
+    }
+  }
+}

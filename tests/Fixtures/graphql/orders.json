@@ -1,0 +1,122 @@
+{
+  "data": {
+    "orders": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Order/5001",
+          "name": "#1001",
+          "createdAt": "2026-10-04T10:00:00Z",
+          "updatedAt": "2026-10-04T10:00:05Z",
+          "cancelledAt": null,
+          "currencyCode": "USD",
+          "email": "ada@example.com",
+          "test": false,
+          "note": null,
+          "displayFinancialStatus": "PAID",
+          "displayFulfillmentStatus": "UNFULFILLED",
+          "customer": { "firstName": "Ada", "lastName": "Lovelace" },
+          "shippingAddress": { "address1": "1 Analytical Way", "address2": null, "city": "London", "provinceCode": null, "zip": "N1", "countryCodeV2": "GB" },
+          "totalTaxSet": { "shopMoney": { "amount": "2.30" } },
+          "totalShippingPriceSet": { "shopMoney": { "amount": "5.00" } },
+          "totalDiscountsSet": { "shopMoney": { "amount": "0.00" } },
+          "lineItems": {
+            "nodes": [
+              {
+                "id": "gid://shopify/LineItem/6001",
+                "sku": "BOLT-1",
+                "name": "Hex bolt",
+                "quantity": 2,
+                "variant": { "id": "gid://shopify/ProductVariant/3001" },
+                "product": { "id": "gid://shopify/Product/2001" },
+                "originalUnitPriceSet": { "shopMoney": { "amount": "4.00" } },
+                "totalDiscountSet": { "shopMoney": { "amount": "0.00" } }
+              },
+              {
+                "id": "gid://shopify/LineItem/6002",
+                "sku": "TEE-S",
+                "name": "T-shirt - S",
+                "quantity": 1,
+                "variant": { "id": "gid://shopify/ProductVariant/3002" },
+                "product": { "id": "gid://shopify/Product/2002" },
+                "originalUnitPriceSet": { "shopMoney": { "amount": "15.00" } },
+                "totalDiscountSet": { "shopMoney": { "amount": "1.50" } }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://shopify/Order/5002",
+          "name": "#1002",
+          "createdAt": "2026-10-04T11:00:00Z",
+          "updatedAt": "2026-10-04T11:00:02Z",
+          "cancelledAt": null,
+          "currencyCode": "USD",
+          "email": "grace@example.com",
+          "test": false,
+          "note": "Leave at the door",
+          "displayFinancialStatus": "PAID",
+          "displayFulfillmentStatus": "UNFULFILLED",
+          "customer": { "firstName": "Grace", "lastName": "Hopper" },
+          "shippingAddress": null,
+          "totalTaxSet": { "shopMoney": { "amount": "0.00" } },
+          "totalShippingPriceSet": { "shopMoney": { "amount": "0.00" } },
+          "totalDiscountsSet": { "shopMoney": { "amount": "0.00" } },
+          "lineItems": {
+            "nodes": [
+              {
+                "id": "gid://shopify/LineItem/6003",
+                "sku": "BOLT-1",
+                "name": "Hex bolt",
+                "quantity": 1,
+                "variant": { "id": "gid://shopify/ProductVariant/3001" },
+                "product": { "id": "gid://shopify/Product/2001" },
+                "originalUnitPriceSet": { "shopMoney": { "amount": "4.00" } },
+                "totalDiscountSet": { "shopMoney": { "amount": "0.00" } }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://shopify/Order/5003",
+          "name": "#1003",
+          "createdAt": "2026-10-04T12:00:00Z",
+          "updatedAt": "2026-10-04T12:00:01Z",
+          "cancelledAt": null,
+          "currencyCode": "USD",
+          "email": "alan@example.com",
+          "test": false,
+          "note": null,
+          "displayFinancialStatus": "PAID",
+          "displayFulfillmentStatus": "UNFULFILLED",
+          "customer": { "firstName": "Alan", "lastName": "Turing" },
+          "shippingAddress": null,
+          "totalTaxSet": { "shopMoney": { "amount": "0.00" } },
+          "totalShippingPriceSet": { "shopMoney": { "amount": "0.00" } },
+          "totalDiscountsSet": { "shopMoney": { "amount": "0.00" } },
+          "lineItems": {
+            "nodes": [
+              {
+                "id": "gid://shopify/LineItem/6004",
+                "sku": "WASH-1",
+                "name": "Washer",
+                "quantity": 10,
+                "variant": { "id": "gid://shopify/ProductVariant/3005" },
+                "product": { "id": "gid://shopify/Product/2004" },
+                "originalUnitPriceSet": { "shopMoney": { "amount": "0.50" } },
+                "totalDiscountSet": { "shopMoney": { "amount": "0.00" } }
+              }
+            ]
+          }
+        }
+      ],
+      "pageInfo": { "hasNextPage": false, "endCursor": "cursor-orders-1" }
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 302,
+      "actualQueryCost": 21,
+      "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1979, "restoreRate": 100.0 }
+    }
+  }
+}

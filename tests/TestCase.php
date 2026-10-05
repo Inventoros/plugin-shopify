@@ -12,7 +12,12 @@ use App\Services\PluginService;
 use App\Support\PluginPageRoutes;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Inventoros\Plugins\Shopify\Shopify\ClientFactory;
+use Inventoros\Plugins\Shopify\Support\Listeners;
+use Inventoros\Plugins\Shopify\Tests\Fakes\FakeClientFactory;
+use Inventoros\Plugins\Shopify\Tests\Fakes\FakeShopifyClient;
 use Inventoros\Plugins\Shopify\ShopifyPlugin;
 use Inventoros\Plugins\Shopify\Support\Migrations;
 use Tests\TestCase as InventorosTestCase;
@@ -38,6 +43,10 @@ abstract class TestCase extends InventorosTestCase
 
     protected User $member;
 
+    protected FakeShopifyClient $shopify;
+
+    protected FakeClientFactory $clients;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -45,6 +54,14 @@ abstract class TestCase extends InventorosTestCase
         SystemSetting::set('installed', true, 'boolean');
 
         $this->activatePlugin();
+
+        // No test may reach Shopify: every store is a fake built from the
+        // recorded responses in tests/Fixtures.
+        Http::preventStrayRequests();
+        $this->shopify = new FakeShopifyClient;
+        $this->clients = new FakeClientFactory($this->shopify);
+        $this->app->instance(ClientFactory::class, $this->clients);
+        Listeners::flush();
 
         $this->organization = $this->makeOrganization('Acme');
         $this->admin = $this->makeUser($this->organization, 'admin');

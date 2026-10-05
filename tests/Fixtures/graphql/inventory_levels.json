@@ -1,0 +1,42 @@
+{
+  "data": {
+    "nodes": [
+      {
+        "id": "gid://shopify/InventoryItem/4001",
+        "inventoryLevels": {
+          "nodes": [
+            {
+              "updatedAt": "2026-10-02T08:00:00Z",
+              "location": { "id": "gid://shopify/Location/1001" },
+              "quantities": [{ "name": "available", "quantity": 25 }]
+            },
+            {
+              "updatedAt": "2026-10-02T08:00:00Z",
+              "location": { "id": "gid://shopify/Location/1002" },
+              "quantities": [{ "name": "available", "quantity": 3 }]
+            }
+          ]
+        }
+      },
+      {
+        "id": "gid://shopify/InventoryItem/4002",
+        "inventoryLevels": {
+          "nodes": [
+            {
+              "updatedAt": "2026-10-02T08:00:00Z",
+              "location": { "id": "gid://shopify/Location/1001" },
+              "quantities": [{ "name": "available", "quantity": 9 }]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 112,
+      "actualQueryCost": 8,
+      "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1990, "restoreRate": 100.0 }
+    }
+  }
+}

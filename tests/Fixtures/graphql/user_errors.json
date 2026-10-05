@@ -1,0 +1,21 @@
+{
+  "data": {
+    "inventorySetQuantities": {
+      "inventoryAdjustmentGroup": null,
+      "userErrors": [
+        {
+          "field": ["input", "quantities", "0", "locationId"],
+          "message": "The specified location could not be found.",
+          "code": "INVALID_LOCATION"
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 10,
+      "actualQueryCost": 10,
+      "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1990, "restoreRate": 100.0 }
+    }
+  }
+}

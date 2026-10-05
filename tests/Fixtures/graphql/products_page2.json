@@ -1,0 +1,73 @@
+{
+  "data": {
+    "products": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Product/2003",
+          "title": "Gift card",
+          "status": "ACTIVE",
+          "updatedAt": "2026-10-01T09:10:00Z",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/3004",
+                "sku": "",
+                "title": "Default Title",
+                "price": "25.00",
+                "barcode": null,
+                "selectedOptions": [{ "name": "Title", "value": "Default Title" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4004" }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://shopify/Product/2004",
+          "title": "Washer",
+          "status": "ACTIVE",
+          "updatedAt": "2026-10-01T09:15:00Z",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/3005",
+                "sku": "WASH-1",
+                "title": "Default Title",
+                "price": "0.50",
+                "barcode": null,
+                "selectedOptions": [{ "name": "Title", "value": "Default Title" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4005" }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://shopify/Product/2005",
+          "title": "Hex bolt (bulk)",
+          "status": "DRAFT",
+          "updatedAt": "2026-10-01T09:20:00Z",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/3006",
+                "sku": "BOLT-1",
+                "title": "Default Title",
+                "price": "3.50",
+                "barcode": null,
+                "selectedOptions": [{ "name": "Title", "value": "Default Title" }],
+                "inventoryItem": { "id": "gid://shopify/InventoryItem/4006" }
+              }
+            ]
+          }
+        }
+      ],
+      "pageInfo": { "hasNextPage": false, "endCursor": "cursor-page-2" }
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 252,
+      "actualQueryCost": 12,
+      "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1974, "restoreRate": 100.0 }
+    }
+  }
+}

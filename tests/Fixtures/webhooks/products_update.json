@@ -1,0 +1,30 @@
+{
+  "id": 2001,
+  "admin_graphql_api_id": "gid://shopify/Product/2001",
+  "title": "Hex bolt M8",
+  "status": "active",
+  "created_at": "2026-09-01T09:00:00Z",
+  "updated_at": "2026-10-04T13:00:00Z",
+  "variants": [
+    {
+      "id": 3001,
+      "product_id": 2001,
+      "sku": "BOLT-1",
+      "title": "Default Title",
+      "price": "4.50",
+      "barcode": "0123456789012",
+      "inventory_item_id": 4001,
+      "option1": "Default Title"
+    },
+    {
+      "id": 3007,
+      "product_id": 2001,
+      "sku": "BOLT-2",
+      "title": "M10",
+      "price": "5.00",
+      "barcode": null,
+      "inventory_item_id": 4007,
+      "option1": "M10"
+    }
+  ]
+}
