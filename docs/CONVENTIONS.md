@@ -61,16 +61,20 @@ Everything a plugin adds to the shared application carries its slug, so two plug
 | Tables | `plg_{snake slug}_` + name; the manifest `table_prefix` may shorten a long slug (prefix at most 24 characters) | `plg_cycle_counts_assignments` |
 | Migration files | `YYYY_MM_DD_HHMMSS_plg_{prefix}_*.php`, real timestamps | `2026_10_05_101500_plg_cycle_counts_create_assignments_table.php` |
 | Index and foreign key names | Name them explicitly when the generated name would pass 64 characters (MySQL) | `plg_cc_assign_org_loc_idx` |
-| Permissions | `{slug}.{ability}`; core names never contain a dot | `cycle-counts.assign` |
-| Web URIs | `/{slug}/...`; write routes under `/{slug}/actions/...` | `/cycle-counts/sessions/12` |
-| Route names | `{slug}.*` | `cycle-counts.sessions.show` |
-| API routes | `/api/v1/plugins/{slug}/...`, names `api.plugins.{slug}.*` | `/api/v1/plugins/cycle-counts/sessions` |
-| Inbound webhooks | `/webhooks/plugins/{slug}/...` (outside the `web` group) | `/webhooks/plugins/shopify/42` |
+| Permissions | `{slug}.{ability}`, registered with `register_permission()`; the ability is lowercase letters, digits and underscores, never hyphens (core rejects `cycle-counts.view-reports`); core names never contain a dot | `cycle-counts.approve_variance` |
+| Web URIs (pages and web routes) | `/p/{slug}/...`; write routes under `/p/{slug}/actions/...` | `/p/cycle-counts/sessions/12` |
+| Route names | `plg.{slug}.*` | `plg.cycle-counts.sessions.show` |
+| API routes | `/api/v1/plugins/{slug}/...`, names `plg.{slug}.api.*` | `/api/v1/plugins/cycle-counts/sessions` |
+| Inbound webhooks | `/webhooks/plugins/{slug}/...` (outside the `web` group), names `plg.{slug}.webhooks.*` | `/webhooks/plugins/shopify/42` |
 | Inertia pages | `Plugin::{slug}/{Page}` | `Plugin::cycle-counts/Sessions` |
 | Artisan commands and schedule names | `{slug}:{command}` | `cycle-counts:generate` |
 | Hooks a plugin fires | `{snake slug}_{event}` | `cycle_counts_recount_requested` |
+| Outbound webhook events | `{slug}.{event}` (lowercase, digits, underscores after the dot), `register_webhook_event()` | `cycle-counts.session_completed` |
+| MCP tools | `{snake slug}_{name}`, `register_mcp_tool()` | `cycle_counts_open_sessions` |
 | Server translations | `__('{slug}::{file}.{key}')` | `__('cycle-counts::messages.saved')` |
 | Browser translations | `plugins.{slug}.{key}` (the SDK prefixes it) | `t('sessions.title')` |
+| Menu `label_key`, widget `title_key` | full key `plugins.{slug}.{key}` (core ignores any other prefix) | `plugins.cycle-counts.nav.title` |
+| Permission labels in the role editor | `permissions.{ability}.label` / `.description` in the browser messages | `permissions.approve_variance.label` |
 | Cache keys, locks, rate limiters | `plg:{slug}:...` | `plg:shopify:sync:42` |
 | Queue names (optional) | `plg-{slug}` | `plg-shopify` |
 | CSS classes | `{slug}-*` in scoped styles | `.cycle-counts-grid` |
@@ -96,7 +100,8 @@ Everything a plugin adds to the shared application carries its slug, so two plug
         "namespace": "Inventoros\\Plugins\\CycleCounts",
         "table_prefix": "plg_cycle_counts_",
         "permission_prefix": "cycle-counts.",
-        "route_prefix": "cycle-counts",
+        "route_name_prefix": "plg.cycle-counts.",
+        "uri_prefix": "p/cycle-counts",
         "depends": [],
         "integrates_with": ["barcode"],
         "kit_version": null
@@ -109,10 +114,14 @@ Core reads `name`, `description`, `version`, `author`, `author_url`, `requires`,
 ## 4. Registration
 
 - `Plugin.php` requires `bootstrap.php` once and returns `fn ($slug, $manifest) => (new {Class}Plugin(...))->register()`. Never declare functions or classes in `Plugin.php`.
-- `register()` only registers: translations, permissions, routes, pages, navigation, hooks, commands, schedule. No queries at registration time (it runs on every request and before installation).
-- Permissions: `register_permission()` when `function_exists('register_permission')`, otherwise map each ability to the nearest core permission (template `Support/Permissions.php`). Never fall back to something broader than core already grants.
-- Routes: reads are `register_page()` pages; writes are `Route::middleware(['web', 'auth'])` under `/{slug}/actions`; API routes add `api`, `auth:sanctum` and `api.permission`. Never register a route on a URI a page uses (core skips the page).
-- Commands: `Illuminate\Console\Application::starting()`. Schedule: `afterResolving(Schedule::class)` (or immediately if resolved). Hooks: `add_action` / `add_filter` with cheap callbacks that queue real work.
+- `register()` only registers: translations, permissions, webhook events, routes, pages, navigation, hooks, MCP tools, commands, schedule. No queries at registration time (it runs on every request and before installation).
+- Permissions: `register_permission('{slug}.{ability}', $label, $description, $category)` when `function_exists('register_permission')`, otherwise map each ability to the nearest core permission (template `Support/Permissions.php`). Never fall back to something broader than core already grants. Admins hold every registered permission; uninstall strips `{slug}.*` from roles and permission sets.
+- Routes: reads are `register_page()` pages; writes are `Route::middleware(['web', 'auth'])` under `/p/{slug}/actions`; API routes add `api`, `auth:sanctum` and `api.permission`. Every route name starts `plg.{slug}.` and every URI sits under `/p/{slug}/`, `/api/v1/plugins/{slug}/` or `/webhooks/plugins/{slug}/`: core never registers routes there. Core (from the release after 2.0.0, Inventoros#254) refuses activation, naming the conflicting route, when a plugin page or route reuses a route name, answers a method and URI an existing route answers, or sits under a first URI segment the application uses (`/cycle-counts/...`, `/reports/...`); older cores only skip a colliding page and log it, so namespacing is what keeps a plugin working everywhere.
+- Navigation: give menu items, submenu items and widgets a `label_key` / `title_key` under `plugins.{slug}.` alongside the English `label` / `title` (the fallback, and what older cores show). The key must exist in `ui/src/locales/en.json` (the template tests this); a key outside the plugin's own namespace is ignored and logged.
+- Hooks: `add_action` / `add_filter` with cheap callbacks that queue real work. Listen to the domain hooks, which fire after commit, once per record per transaction, from every surface (web, REST, GraphQL, MCP, imports, jobs, commands), rather than to one controller: `product_*`, `variant_*`, `order_*`, `purchase_order_*`, `supplier_*`, `category_*`, `location_*`, `warehouse_*` (`_created` / `_updated` / `_deleted`), `approval_requested`, `approval_decided`, `import_finished`, and `stock_changed($product, ?$variant, $change)` with `$change = ['before', 'after', 'locations' => [id => ['before', 'after']]]` for every on-hand change whatever caused it. The `stock_audit_completing` filter may hold an audit's completion (return `true`, or a reason string to refuse). The full list is `HookRegistry` in the core and the core guide.
+- Outbound webhook events: `register_webhook_event('{slug}.{event}', $description, $group)` and `dispatch_webhook_event($event, $data, $organizationId)` (sent after commit, signed, retried and SSRF-checked by core). Never put secrets or another organization's data in `$data`. Feature-detect both functions (template `Support/WebhookEvents.php`).
+- MCP tools: `register_mcp_tool($slug, ToolClass::class, $permission)`; the tool's `$name` starts with the snake-case slug; core lists and runs it only for users holding the permission whose token also allows it; the tool scopes every query to `$request->user()->organization_id` and asks for explicit confirmation before any write.
+- Commands: `Illuminate\Console\Application::starting()`. Schedule: `afterResolving(Schedule::class)` (or immediately if resolved).
 - Lifecycle: `activate.php` runs migrations (and so covers updates); `deactivate.php` never deletes data; `uninstall.php` rolls back the plugin's migrations and removes its permission names from roles and permission sets. Nothing in a lifecycle file touches core records.
 
 ## 5. Data
@@ -120,6 +129,8 @@ Core reads `name`, `description`, `version`, `author`, `author_url`, `requires`,
 - Every plugin row has `organization_id` (foreign key to `organizations`, cascade on delete) and every query filters by it. Every plugin ships a test that a second organization cannot read or change the first one's rows.
 - Plugins never add columns to, or alter, core tables. Extra data about a core record goes in a plugin table keyed by the core id (`product_id` foreign key, cascade or null on delete as the meaning requires).
 - Core records (stock, orders, POs, audits, shipments) change only through core services (`StockAdjustment::adjust()`, `StockAuditService`, `OrderService`, `PurchaseOrderService`, `ShipmentService`, `ProductLocationStockService`), inside `DB::transaction()`, with row locks where quantities are read then written. Those services are the plugin API (SDK gap G13 tracks making it official).
+- Stock and bins: `StockAdjustment::adjust()` keeps the location bins in step with `products.stock` (SUM(bins) never exceeds the total). Pass `locationId` to book one bin; without it a decrease drains bins in fulfilment order and an increase lands in the primary bin. Never pass `syncBins: false` unless you move the bins yourself through `ProductLocationStockService`. Every plugin that changes stock tests that SUM(bins) equals stock afterwards for a fully binned product.
+- Actors: code that runs outside a request (jobs, commands, webhook consumers) passes an explicit actor to every core service that writes a ledger row: `StockAdjustment::adjust(actor: ...)`, `StockAuditService::complete($audit, $actor)`, `OrderService::cancel($order, $actor)`, `restockForDeletion($order, $actor)`, `replaceItems($order, $items, $actor)` (the trailing `?User $actor`; without one core uses the signed-in user, then the order's creator, then the organization's first user). Never sign a user in to get attribution.
 - Migrations are forward-only once released: never edit a shipped migration; add a new one. `down()` must fully reverse `up()`, because uninstall depends on it.
 - Money is a decimal string (`App\Support\Money`), quantities are integers, timestamps are UTC.
 
@@ -134,15 +145,16 @@ Core reads `name`, `description`, `version`, `author`, `author_url`, `requires`,
 ## 7. Versioning and compatibility
 
 - Semantic versions. `version` in `plugin.json`, the git tag (`vX.Y.Z`) and the `CHANGELOG.md` heading must match (the release workflow enforces it).
-- `requires` is the lowest Inventoros version the plugin is tested against. A plugin that needs a newer SDK capability either raises `requires` or feature-detects it (`function_exists('register_permission')`, `window.Inventoros.apiVersion >= 2`) and degrades.
+- `requires` is the lowest Inventoros version the plugin is tested against. A plugin that needs a newer SDK capability either raises `requires` or feature-detects it (`function_exists('register_permission')`, `register_webhook_event`, `register_mcp_tool`, `plugin_licence`, `window.Inventoros.apiVersion >= 2`) and degrades. Things older cores simply ignore (a menu `label_key`, a widget `title_key`) need no detection. Namespaced routes (`plg.{slug}.*`, `/p/{slug}/`) work on every core, so there is no reason to keep an old unprefixed route.
 - Patch: fixes only. Minor: new features, new migrations, new permissions. Major: removed features, raised `requires` across a major core version, or data migrations that cannot be reversed on downgrade.
 - CI runs against `INVENTOROS_REF` (core `main` today, because the core has no `v2.0.0` tag yet). Once tags exist, CI runs against the `requires` tag and against `main`.
 
 ## 8. Testing
 
-- The plugin's PHPUnit suite runs inside a real Inventoros: CI checks out the core, places the plugin at `plugins/{slug}`, runs `composer install` in the core and `vendor/bin/phpunit -c plugins/{slug}/phpunit.xml`. `tests/bootstrap.php` loads the core autoloader and the plugin's own.
-- `tests/TestCase.php` extends the core `Tests\TestCase`, uses `RefreshDatabase`, creates the plugin's tables in `afterRefreshingDatabase()` (MySQL commits DDL, so they must exist before the per-test transaction), then activates the plugin through `PluginService` and adds its pages and commands the way boot would.
-- Required in every plugin: lifecycle (activate, deactivate keeps data, re-activate is idempotent, uninstall removes only the plugin's tables and permissions and leaves core records), permissions (allowed, refused, guest), tenant isolation, manifest checks (slug, semver, prefix on every table, built bundle).
+- The plugin's PHPUnit suite runs inside a real Inventoros: CI checks out the core, runs `composer install` in the core, then places the plugin at `plugins/{slug}` and runs `vendor/bin/phpunit -c plugins/{slug}/phpunit.xml`. `tests/bootstrap.php` loads the core autoloader and the plugin's own.
+- Install the core's dependencies **before** the plugin is in `plugins/`. The core's `composer.json` maps `Plugins\` to `plugins/`, so `composer install` or `dump-autoload` with an official plugin present prints "does not comply with psr-4 autoloading standard" for every `Inventoros\Plugins\{Class}` class. The warning is harmless (the plugin autoloads through its own `bootstrap.php`), but keep CI logs clean; never "fix" it in the plugin or in core.
+- `tests/TestCase.php` extends the core `Tests\TestCase`, uses `RefreshDatabase`, creates the plugin's tables by overriding `migrateDatabases()` (right after the core schema, before the per-test transaction: MySQL commits DDL, so creating them inside it would end it), then activates the plugin through `PluginService` and adds its pages and commands the way boot would. On current cores the activation itself runs the route-collision check, so every test also proves the plugin's routes are namespaced.
+- Required in every plugin: lifecycle (activate, deactivate keeps data, re-activate is idempotent, uninstall removes only the plugin's tables and permissions and leaves core records), permissions (allowed, refused, guest; for API routes also a token whose abilities lack the permission), tenant isolation, route namespace (every route named `plg.{slug}.*` and under the plugin's URI prefixes), manifest checks (slug, semver, prefix on every table, built bundle), and that every `label_key` / `title_key` exists in `en.json`.
 - Required by domain: inventory integrity (quantities through core services, transactions), idempotency of every job and webhook consumer (duplicate delivery is a no-op), retries and permanent failures, external API failures and rate limits (through fake adapters: no live API in tests), race conditions on quantity changes, approval paths, and install/upgrade from the previous release (run the previous version's migrations, then the new ones).
 - Databases: SQLite, PostgreSQL and MySQL in CI.
 
@@ -151,8 +163,10 @@ Core reads `name`, `description`, `version`, `author`, `author_url`, `requires`,
 `.github/workflows/ci.yml` from the template, unchanged apart from `PLUGIN_SLUG`:
 
 1. **UI bundle**: `npm ci && npm run build` in `ui/`, uploaded as an artifact.
-2. **Tests** (matrix sqlite, pgsql, mysql): core at `INVENTOROS_REF`, plugin in `plugins/{slug}`, the plugin's suite; on SQLite also the core's own `--filter=Plugin` tests with the plugin installed.
-3. **Package**: `php bin/package.php`, then `php bin/verify-package.php` installs the ZIP into a freshly migrated core through `PluginService::installFromZip()`, activates, deactivates, re-activates and deletes it, and fails if any table, migration record, folder or plugin record is left.
+2. **Tests** (matrix sqlite, pgsql, mysql): core at `INVENTOROS_REF` with `composer install` run first, then the plugin in `plugins/{slug}`, the plugin's suite; on SQLite also the core's own `--filter=Plugin` tests with the plugin installed.
+3. **Package**: `php bin/package.php`, then `php bin/verify-package.php` installs the ZIP into a freshly migrated core through `PluginService::installFromZip()`, activates (which runs the core's route-collision check), deactivates, re-activates and deletes it, and fails if any table, migration record, folder or plugin record is left.
+
+The template repository has one more job, **renamed copy**: it runs `bin/rename.php --slug=sample-stock`, fails if the copy still names the template, then runs the copy's suite and ZIP install. It sits between `# BEGIN template-only` / `# END template-only` markers, which `bin/rename.php` removes, so plugins made from the template never run it.
 
 ## 10. Packaging and release
 
@@ -170,14 +184,28 @@ Core reads `name`, `description`, `version`, `author`, `author_url`, `requires`,
 Enforcement, in order of strength:
 
 1. **Install and update gating (works today)**: the marketplace serves a paid package only to an organization whose connected inventoros.com token owns it; packages are signed.
-2. **Runtime entitlement (SDK gap G7, needed before the first paid plugin)**: the marketplace signs an entitlement (`slug`, account, install id, `expires_at`, plan) with the key core already trusts; core verifies and caches it (daily refresh, offline grace period of 14 days) and exposes `plugin_entitlement($slug)`. A plugin reads it through a small `Licence` class, shared by all paid plugins as a vendored copy (like the integration kit).
+2. **Runtime licence (Inventoros#251, inventoros.com#34)**: the marketplace signs a per-install, per-organization entitlement; core verifies it on every read, refreshes it daily and allows a 14-day offline grace period. A paid plugin asks `plugin_licence($slug, $organization = null)`, which never throws and never contacts the marketplace, and gets a `PluginLicence` with `status` `valid` / `expired` / `missing` / `unknown`, a `reason`, `allowsWrites()` (the same as `isValid()`) and `toArray()`. Only `valid` (which includes the grace period) unlocks writes.
+
+```php
+// Feature-detect: cores without the SDK have no licence to check.
+$licence = function_exists('plugin_licence')
+    ? plugin_licence('insights', $organizationId)   // pass the organization in jobs, commands and schedules
+    : null;
+
+if ($licence !== null && ! $licence->allowsWrites()) {
+    // Read-only: render pages with a renew notice (pass $licence->toArray() as a prop),
+    // refuse writes with a clear message, skip syncs and record why. Keep all data.
+}
+```
+
+The template carries this example, commented out, in `SettingsController`; free plugins ship no licence logic.
 
 The licence check **fails safe**:
 
 | State | What the plugin does |
 |-------|----------------------|
-| Licensed, or within the grace period | Everything. |
-| Unlicensed or expired | Its pages open read-only with a notice and a link to renew; its write routes refuse with a clear message; its schedules and syncs stop and say so in their history. Its data is kept. |
+| `valid` (licensed, or within the offline grace period) | Everything. |
+| `expired`, `missing` or `unknown` | Its pages open read-only with a notice and a link to renew; its write routes refuse with a clear message; its schedules and syncs stop and say so in their history. Its data is kept. |
 | Never, in any state | Blocking a core page, changing or hiding core records (stock, orders, products), deleting plugin data, phoning home on every request, or failing a request because the marketplace is unreachable. |
 
 No security through obscurity: the check is ordinary readable PHP; the protection is the signed entitlement and the license terms, not hidden code.

@@ -35,7 +35,7 @@ If your store no longer offers custom app development in the admin, create the a
 
 ## 2. Connect it in Inventoros
 
-Open **Shopify** in the sidebar and fill in **Connect a store**:
+Open **Shopify** in the sidebar (`/p/shopify`) and fill in **Connect a store**:
 
 | Field | Value |
 |-------|-------|
@@ -79,7 +79,7 @@ Nothing syncs for a product until its mapping is confirmed: suggestions are neve
 
 ## 5. Check that webhooks arrive
 
-Shopify can only deliver webhooks to a public `https` address. The store card shows the webhook address and whether webhooks were registered. On a local or plain-http install they are not registered, and the scheduled sync (every 15 minutes) picks up order and product changes instead.
+Shopify can only deliver webhooks to a public `https` address. The store card shows the webhook address (`https://your-inventoros/webhooks/plugins/shopify/{connection}`) and whether webhooks were registered. On a local or plain-http install they are not registered, and the scheduled sync (every 15 minutes) picks up order and product changes instead.
 
 Place a test order in Shopify (enable **Also import test orders** first, or use a real low-value order) and check **Activity**: a `webhook` run for `orders/create` should appear within seconds, and the order under **Orders** with source *shopify*.
 

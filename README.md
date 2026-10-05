@@ -90,10 +90,12 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
 - Inventoros 2.0.0 or newer with the plugin SDK of Inventoros#250 and #251 (plugin permissions, shared UI components and translations, `stock_changed` and the other domain hooks, `register_webhook_event`, `register_mcp_tool`). Plugin permissions, webhook events and the MCP tool are feature-detected and skipped on cores without them; the `stock_changed` hook is required for stock pushes.
 - PHP 8.4+. Shopify Admin GraphQL API **2026-07** (pinned in `ShopifyClient::API_VERSION`).
 - Tested against Inventoros `main` on SQLite, PostgreSQL and MySQL.
+- Routes follow the plugin route namespace: names `plg.shopify.*`, pages and actions under `/p/shopify/` (the overview moved from `/shopify` to `/p/shopify` in 1.0.1; update bookmarks). The webhook address, `/webhooks/plugins/shopify/{connection}`, is unchanged, so subscriptions registered by 1.0.0 keep delivering and nothing needs re-registering.
+- The sidebar item is translated on cores that translate plugin menu items (`label_key`).
 - Known limitations and SDK gaps:
   - Core has no stock reservations (SDK gap G4): an order placed in Shopify takes stock when it is imported, not when it is placed.
   - Core keeps variant stock without a location breakdown, so variants sync with the primary location only.
-  - `OrderService::cancel()` takes its actor from the signed-in user; the plugin signs in the connection's user for that one call when it cancels in a background job.
+  - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
   - Fulfillments and tracking are not pushed to Shopify yet; refunds and order edits after import are not applied.
   - No public OAuth app yet (custom app tokens only); see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
 
