@@ -102,6 +102,21 @@ final class CatalogMappingTest extends TestCase
         $this->assertSame($washer->id, $this->mapping('variant', '3005')->internal_id);
     }
 
+    public function test_reset_matches_the_sku_again(): void
+    {
+        RunSync::dispatch($this->store->id, ['products'], 'initial', 'user', $this->admin->id);
+
+        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.ignore', $this->mapping('variant', '3001')))->assertRedirect();
+        $this->assertSame(Mapping::IGNORED, $this->statusOf('3001'));
+
+        $this->actingAs($this->admin)->post(route('shopify.actions.mappings.reset', $this->mapping('variant', '3001')))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(Mapping::SUGGESTED, $this->statusOf('3001'));
+        $this->assertSame($this->bolt->id, $this->mapping('variant', '3001')->internal_id);
+    }
+
     public function test_product_updates_change_inventoros_names_and_prices_when_shopify_owns_products(): void
     {
         $this->mapCatalog();

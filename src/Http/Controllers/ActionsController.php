@@ -270,7 +270,7 @@ final class ActionsController extends Controller
         app(MappingStore::class)->unlink($row, $row->entity === Locations::ENTITY ? Mapping::PENDING : Mapping::UNMATCHED);
 
         if ($row->entity === Catalog::ENTITY) {
-            app(Catalog::class)->match($row->connection()->firstOrFail(), $row->refresh());
+            app(Catalog::class)->match(Connection::query()->forOrganization((int) $row->organization_id)->findOrFail($row->connection_id), $row->refresh());
         }
 
         return back()->with('success', __('shopify::messages.mapping_reset'));
