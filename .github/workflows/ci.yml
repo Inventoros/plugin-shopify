@@ -105,16 +105,6 @@ jobs:
           ref: ${{ env.INVENTOROS_REF }}
           path: core
 
-      - name: Check out the plugin into plugins/
-        uses: actions/checkout@v4
-        with:
-          path: core/plugins/${{ env.PLUGIN_SLUG }}
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: core/plugins/${{ env.PLUGIN_SLUG }}/dist
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -139,6 +129,21 @@ jobs:
           composer install --no-interaction --prefer-dist
           cp .env.example .env
           php artisan key:generate
+
+      # The plugin goes into plugins/ only after composer install: the core's
+      # "Plugins\\" => plugins/ PSR-4 rule would otherwise scan the plugin's
+      # classes and warn that each one "does not comply with psr-4 autoloading
+      # standard" (harmless: the plugin loads them with its own autoloader,
+      # bootstrap.php).
+      - name: Check out the plugin into plugins/
+        uses: actions/checkout@v4
+        with:
+          path: core/plugins/${{ env.PLUGIN_SLUG }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: core/plugins/${{ env.PLUGIN_SLUG }}/dist
 
       - name: Run the plugin's tests inside Inventoros
         working-directory: core
