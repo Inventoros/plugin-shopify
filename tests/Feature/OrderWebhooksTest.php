@@ -11,6 +11,7 @@ use App\Models\Order\Order;
 use Inventoros\Plugins\Shopify\Kit\Models\DeadLetter;
 use Inventoros\Plugins\Shopify\Kit\Models\Mapping;
 use Inventoros\Plugins\Shopify\Kit\Models\WebhookInboxEntry;
+use Inventoros\Plugins\Shopify\Support\Core;
 use Inventoros\Plugins\Shopify\Tests\Concerns\ShopifyWorld;
 use Inventoros\Plugins\Shopify\Tests\TestCase;
 
@@ -145,6 +146,31 @@ final class OrderWebhooksTest extends TestCase
         $this->assertSame(10, $this->bolt->fresh()->stock, 'restocked once');
         $this->assertSame(10, $this->binQuantity());
         $this->assertSame(5, $this->teeS->fresh()->stock);
+    }
+
+    public function test_a_cancellation_passes_the_connection_user_to_core_instead_of_signing_in(): void
+    {
+        $this->assertTrue(Core::cancelTakesActor(), 'OrderService::cancel() on this core takes an actor');
+
+        $this->webhook('orders/create', $this->payload('orders_create'))->assertOk();
+
+        $signedInDuringCancel = [];
+        add_action('order_updated', function ($order, $user = null) use (&$signedInDuringCancel): void {
+            if ($order->status === OrderStatus::CANCELLED) {
+                $signedInDuringCancel[] = $user?->id;
+            }
+        });
+
+        $this->webhook('orders/cancelled', $this->payload('orders_cancelled'))->assertOk();
+
+        $this->assertSame(OrderStatus::CANCELLED, $this->orders()->sole()->status);
+        $this->assertSame([null], $signedInDuringCancel, 'nobody is signed in while core cancels the order');
+        $this->assertNull(auth()->user());
+        $this->assertSame(
+            [$this->admin->id],
+            StockAdjustment::withoutGlobalScopes()->where('adjustment_quantity', '>', 0)->pluck('user_id')->unique()->values()->all(),
+            'the restock is booked as the connection user',
+        );
     }
 
     public function test_an_older_update_after_the_cancellation_does_not_reopen_anything(): void

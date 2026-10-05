@@ -11,9 +11,11 @@ use App\Models\Order\Order;
 use App\Models\Scopes\OrganizationScope;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\OrderService;
 use Illuminate\Database\Eloquent\Builder;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\PermanentError;
 use Inventoros\Plugins\Shopify\Kit\Models\Connection;
+use ReflectionMethod;
 
 /**
  * Queries on core records for one organization, explicitly.
@@ -56,12 +58,50 @@ final class Core
     }
 
     /**
+     * Cancel an order through core's OrderService as $actor.
+     *
+     * Cores whose OrderService::cancel() takes the actor as a parameter
+     * (`?User $actor`, Inventoros#254) get it passed and nobody is signed
+     * in. Older cores read the actor from auth(), so there the call runs
+     * signed in as $actor (see as()).
+     */
+    public static function cancelOrder(OrderService $orders, Order $order, User $actor): Order
+    {
+        if (self::cancelTakesActor()) {
+            return $orders->cancel($order, actor: $actor);
+        }
+
+        return self::as($actor, fn () => $orders->cancel($order));
+    }
+
+    /**
+     * Whether this core's OrderService::cancel() has an $actor parameter.
+     */
+    public static function cancelTakesActor(): bool
+    {
+        static $takes = null;
+
+        if ($takes === null) {
+            $takes = false;
+
+            foreach ((new ReflectionMethod(OrderService::class, 'cancel'))->getParameters() as $parameter) {
+                if ($parameter->getName() === 'actor') {
+                    $takes = true;
+                }
+            }
+        }
+
+        return $takes;
+    }
+
+    /**
      * Run $work signed in as $user, then restore whoever was signed in.
      *
-     * Some core services take the actor from auth() rather than a
-     * parameter (OrderService::cancel() writes its restock ledger rows with
-     * auth()->id()). Jobs have no signed-in user, so they would fail; this
-     * signs in the connection's user for that one call only.
+     * Older cores take the actor of some services from auth() rather than
+     * a parameter (OrderService::cancel() before Inventoros#254 wrote its
+     * restock ledger rows with auth()->id()). Jobs have no signed-in user,
+     * so they would fail; this signs in the connection's user for that one
+     * call only.
      *
      * @template T
      *

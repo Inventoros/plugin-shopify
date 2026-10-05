@@ -193,7 +193,7 @@ final class OrderImporter
 
         if (($order['cancelled_at'] ?? null) !== null && $core->status !== OrderStatus::CANCELLED) {
             try {
-                Core::as(Core::actor($connection), fn () => $this->orders->cancel($core));
+                Core::cancelOrder($this->orders, $core, Core::actor($connection));
                 $outcome = 'cancelled';
                 $this->log($connection, $run, 'info', "Cancelled order {$core->order_number} (Shopify {$label}) and restocked it.", (string) $order['id'], (int) $core->id, 'cancel_order');
             } catch (InvalidStateException $error) {
