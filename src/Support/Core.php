@@ -130,12 +130,16 @@ final class Core
      * The user background work acts as (core records name an actor): the
      * person who connected the store, while they still belong to the
      * organization.
+     *
+     * They may work in the organization through a membership rather than
+     * as their home organization; the user returned works in the
+     * connection's organization either way.
      */
     public static function actor(Connection $connection): User
     {
-        $user = $connection->acting_user_id === null ? null : User::query()->find($connection->acting_user_id);
+        $user = Members::userIn($connection->acting_user_id === null ? null : (int) $connection->acting_user_id, (int) $connection->organization_id);
 
-        if ($user === null || (int) $user->organization_id !== (int) $connection->organization_id) {
+        if ($user === null) {
             throw new PermanentError('This connection has no user to act as. Open the connection settings and save them to act as yourself.');
         }
 
