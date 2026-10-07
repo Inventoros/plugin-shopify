@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-07
+
+### Fixed
+
+- Order imports, Shopify cancellations and stock pulls now work when the connection's user belongs to the organization through a membership rather than as their home organization (Multi-Company, 3PL operator staff in client organizations): such members are accepted as the user the connection acts as, and the records they create belong to the connection's organization. Users who are not members of the organization are still refused.
+
 ## [1.0.1] - 2026-10-05
 
 ### Changed
