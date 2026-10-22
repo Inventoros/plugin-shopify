@@ -172,6 +172,70 @@ final class HttpShopifyClient implements ShopifyClient
         $this->assertNoUserErrors($data['inventorySetQuantities']['userErrors'] ?? []);
     }
 
+    public function fulfilmentOrders(string $orderId, string $locationId): array
+    {
+        $result = [];
+        $after = null;
+        do {
+            $data = $this->query(FulfilmentQueries::ORDERS, ['id' => Gid::make('Order', $orderId), 'location' => Gid::make('Location', $locationId), 'after' => $after], 300);
+            if (! is_array($data['order'] ?? null)) {
+                throw new PermanentError('The Shopify order no longer exists or is not accessible.');
+            }
+            $page = $data['order']['fulfillmentOrders'] ?? [];
+            foreach ($page['nodes'] ?? [] as $order) {
+                if ($order['lineItems']['pageInfo']['hasNextPage'] ?? false) {
+                    throw new PermanentError('This fulfillment order has more than 250 lines. Fulfil it in Shopify.');
+                }
+                $result[] = [
+                    'id' => Gid::id($order['id']), 'status' => $order['status'], 'request_status' => $order['requestStatus'],
+                    'location_id' => Gid::id($order['assignedLocation']['location']['id'] ?? null),
+                    'lines' => array_map(fn ($line) => [
+                        'id' => Gid::id($line['id']), 'line_id' => Gid::id($line['lineItem']['id']),
+                        'inventory_item_id' => Gid::id($line['inventoryItemId'] ?? null), 'remaining' => (int) $line['remainingQuantity'],
+                        'stocked' => ($line['variant']['inventoryItem']['inventoryLevel'] ?? null) !== null,
+                    ], $order['lineItems']['nodes'] ?? []),
+                ];
+            }
+            $more = (bool) ($page['pageInfo']['hasNextPage'] ?? false);
+            $after = $page['pageInfo']['endCursor'] ?? null;
+            if ($more && $after === null) {
+                throw new TransientError('Shopify omitted the fulfilment order page cursor.');
+            }
+        } while ($more);
+
+        return $result;
+    }
+
+    public function activateInventory(string $inventoryItemId, string $locationId, string $key): void
+    {
+        $data = $this->query(FulfilmentQueries::ACTIVATE, ['item' => Gid::make('InventoryItem', $inventoryItemId), 'location' => Gid::make('Location', $locationId), 'key' => $key], 10);
+        $this->assertNoUserErrors($data['inventoryActivate']['userErrors'] ?? []);
+    }
+
+    public function moveFulfilmentOrder(string $id, string $locationId, array $lines): void
+    {
+        if ($lines === []) {
+            throw new PermanentError('A shipment move must name its line quantities.');
+        }
+        $data = $this->query(FulfilmentQueries::MOVE, [
+            'id' => Gid::make('FulfillmentOrder', $id), 'location' => Gid::make('Location', $locationId),
+            'lines' => array_map(fn ($line) => ['id' => Gid::make('FulfillmentOrderLineItem', $line['id']), 'quantity' => $line['quantity']], $lines),
+        ], 10);
+        $this->assertNoUserErrors($data['fulfillmentOrderMove']['userErrors'] ?? []);
+    }
+
+    public function createFulfilment(array $fulfilment, string $message): string
+    {
+        $data = $this->query(FulfilmentQueries::CREATE, ['fulfillment' => $fulfilment, 'message' => $message], 10);
+        $this->assertNoUserErrors($data['fulfillmentCreate']['userErrors'] ?? []);
+        $id = Gid::id($data['fulfillmentCreate']['fulfillment']['id'] ?? null);
+        if ($id === null) {
+            throw new TransientError('Shopify did not return a fulfilment id.');
+        }
+
+        return $id;
+    }
+
     public function updateProductTitle(string $productId, string $title): void
     {
         $data = $this->query(Queries::UPDATE_PRODUCT, [

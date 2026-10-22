@@ -92,3 +92,7 @@ Place a test order in Shopify (enable **Also import test orders** first, or use 
 ## 7. Future: a public app with OAuth
 
 Version 1 connects with a custom app's access token, one store at a time. A public Shopify app installed through OAuth (an install link, offline access tokens, Shopify's mandatory privacy webhooks) is planned; the connection model already keeps credentials as an encrypted set so an OAuth token can replace the custom app token without a data migration.
+
+### Optional shipment sync
+
+To push shipped parcels and tracking, upgrade Inventoros with shipment notification ownership, add `read_merchant_managed_fulfillment_orders` and `write_merchant_managed_fulfillment_orders` to the Shopify custom app, and enable shipment push in the connection settings. Keep one Shopify location per ship-from warehouse. Shopify owns customer shipping emails while this option is enabled, including while sync is paused. Resume sync to process queued shipments. Orders imported before exact line mappings were stored require manual fulfilment in Shopify. See the README for uncertain-response recovery.

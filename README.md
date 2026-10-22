@@ -94,10 +94,10 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
 - Routes follow the plugin route namespace: names `plg.shopify.*`, pages and actions under `/p/shopify/` (the overview moved from `/shopify` to `/p/shopify` in 1.0.1; update bookmarks). The webhook address, `/webhooks/plugins/shopify/{connection}`, is unchanged, so subscriptions registered by 1.0.0 keep delivering and nothing needs re-registering.
 - The sidebar item is translated on cores that translate plugin menu items (`label_key`).
 - Known limitations and SDK gaps:
-  - Core has no stock reservations (SDK gap G4): an order placed in Shopify takes stock when it is imported, not when it is placed.
+  - Orders commit Inventoros stock when imported. Cores with reservations exclude local holds from pushed availability; older releases do not provide reservation support.
   - On cores with variant location stock, each variant syncs its own bins per mapped warehouse. Older cores retain primary-location variant sync. Local and global stock holds reduce pushed availability; warehouse quantities share a single SKU availability budget, allocated primary location first.
   - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
-  - Fulfillments and tracking are not pushed to Shopify yet; refunds and order edits after import are not applied.
+  - Optional shipment fulfilment and tracking push is available on cores with shipment notification ownership. Refunds and order edits after import are not applied.
   - No public OAuth app yet (custom app tokens only); see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
 
 ## Develop and test
@@ -131,3 +131,13 @@ README screenshots: `SCREENSHOTS=1 npx playwright test -c plugins/shopify/e2e/pl
 ## License
 
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
+
+## Shipment fulfilment and tracking
+
+After upgrading the core with shipment notification ownership, grant the custom app `read_merchant_managed_fulfillment_orders` and `write_merchant_managed_fulfillment_orders`, then enable **Push shipments and tracking to Shopify** in the connection settings. This is off by default. Map each ship-from warehouse to exactly one Shopify location.
+
+Newly imported order lines retain their exact Shopify line ids. When an Inventoros shipment is marked shipped, queued work fulfils only those shipped quantities, includes tracking, and lets Shopify send the shipping email if the customer notification option is enabled. The core email is suppressed for those shipments. Older imported orders without exact line mappings must be fulfilled in Shopify. Shipping never deducts Inventoros stock a second time.
+
+If routing differs, the plugin activates previously unstocked inventory items at the destination, without resetting existing quantities, before moving only the shipment’s fulfilment-order lines. Moves re-read Shopify because order and line ids may change. Fulfilment holds and unsupported service requests stop the push for review. Read pages and definite throttles use the existing delayed retries.
+
+Shopify’s [fulfillmentCreate](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentCreate) does not document a creation idempotency key. The plugin commits a send claim before creation, persists the returned id, and refuses to blindly replay an uncertain response or a killed worker’s claim. Check the failed operation in Sync activity and verify or finish that shipment in Shopify; repeated retries cannot create another fulfilment. This conservative stop also applies to rejected creation responses. [Destination activation](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/inventoryActivate) uses its required idempotency key; [fulfilment-order moves](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentOrderMove) require the items to be stocked at the destination.

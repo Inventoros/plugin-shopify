@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Отправлять отгрузки и отслеживание в Shopify",
+        "fulfilmentsHint": "Требуются разрешения Shopify на выполнение заказов и обновлённый Inventoros. Письмо об отправке отправляет Shopify.",
         "name": "Название",
         "namePlaceholder": "Основной магазин",
         "shopDomain": "Домен магазина",

@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Enviar envíos y seguimiento a Shopify",
+        "fulfilmentsHint": "Requiere permisos de preparación de Shopify e Inventoros actualizado. Shopify envía el correo de envío.",
         "name": "Nombre",
         "namePlaceholder": "Tienda principal",
         "shopDomain": "Dominio de la tienda",

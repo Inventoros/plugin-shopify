@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Push shipments and tracking to Shopify",
+        "fulfilmentsHint": "Requires Shopify fulfilment permissions and an updated Inventoros core. Shopify sends the shipping email.",
         "name": "Name",
         "namePlaceholder": "Main store",
         "shopDomain": "Shop domain",

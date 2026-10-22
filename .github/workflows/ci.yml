@@ -67,7 +67,7 @@ jobs:
             config: phpunit.xml
             port: ''
             username: ''
-            core_ref: feat/warehouse-stock-overview
+            core_ref: feat/order-consolidation-planning
           - database: mysql
             config: phpunit.mysql.xml
             port: 3306

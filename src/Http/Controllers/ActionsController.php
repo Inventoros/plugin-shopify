@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Inventoros\Plugins\Shopify\Jobs\ImportOrder;
 use Inventoros\Plugins\Shopify\Jobs\PushInventory;
 use Inventoros\Plugins\Shopify\Jobs\RunSync;
@@ -26,10 +28,11 @@ use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Support\Core;
 use Inventoros\Plugins\Shopify\Support\Permissions;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
+use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
-use InvalidArgumentException;
+use Inventoros\Plugins\Shopify\Sync\SkuMatcher;
 
 /**
  * Every write the pages make, under /p/shopify/actions (web group: session,
@@ -221,7 +224,7 @@ final class ActionsController extends Controller
             }
 
             $data = $request->validate(['sku' => ['required', 'string', 'max:191']]);
-            $candidates = \Inventoros\Plugins\Shopify\Sync\SkuMatcher::candidates($organizationId, $data['sku']);
+            $candidates = SkuMatcher::candidates($organizationId, $data['sku']);
 
             if (count($candidates) !== 1) {
                 throw ValidationException::withMessages(['sku' => count($candidates) === 0
@@ -379,9 +382,14 @@ final class ActionsController extends Controller
             'stock_source' => ['required', Rule::in(SyncPolicy::STOCK_SOURCES)],
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
             'import_orders' => ['required', 'boolean'],
+            'push_fulfilments' => ['nullable', 'boolean'],
             'import_test_orders' => ['nullable', 'boolean'],
             'orders_since' => ['nullable', 'date'],
         ]);
+
+        if (($data['push_fulfilments'] ?? false) && ! FulfilmentPush::supported()) {
+            throw ValidationException::withMessages(['push_fulfilments' => 'Update Inventoros to a version with shipment notification ownership before enabling this option.']);
+        }
 
         if ($existing === null && ! ShopDomain::valid($data['shop_domain'])) {
             throw ValidationException::withMessages(['shop_domain' => __('shopify::messages.invalid_domain')]);
@@ -390,7 +398,7 @@ final class ActionsController extends Controller
         return $data;
     }
 
-    private function authorizeManage(Request $request): \App\Models\User
+    private function authorizeManage(Request $request): User
     {
         $user = $request->user();
 

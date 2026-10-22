@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Tests\Fakes;
 
+use Inventoros\Plugins\Shopify\Kit\Exceptions\TransientError;
 use Inventoros\Plugins\Shopify\Shopify\Normalizer;
 use Inventoros\Plugins\Shopify\Shopify\Page;
 use Inventoros\Plugins\Shopify\Shopify\ShopifyClient;
@@ -195,6 +196,48 @@ final class FakeShopifyClient implements ShopifyClient
     /**
      * @param  array<int, mixed>  $args
      */
+    public array $fulfilmentOrderRows = [];
+
+    public array $fulfilments = [];
+
+    public bool $loseFulfilmentResponse = false;
+
+    public function fulfilmentOrders(string $orderId, string $locationId): array
+    {
+        $this->record(__FUNCTION__, func_get_args());
+
+        return $this->fulfilmentOrderRows;
+    }
+
+    public function activateInventory(string $inventoryItemId, string $locationId, string $key): void
+    {
+        $this->record(__FUNCTION__, func_get_args());
+    }
+
+    public function moveFulfilmentOrder(string $id, string $locationId, array $lines): void
+    {
+        $this->record(__FUNCTION__, func_get_args());
+        foreach ($this->fulfilmentOrderRows as &$row) {
+            if ($row['id'] === $id) {
+                $row['location_id'] = $locationId;
+                foreach ($row['lines'] as &$line) {
+                    $line['stocked'] = true;
+                }
+            }
+        }
+    }
+
+    public function createFulfilment(array $fulfilment, string $message): string
+    {
+        $this->record(__FUNCTION__, func_get_args());
+        $this->fulfilments[] = $fulfilment;
+        if ($this->loseFulfilmentResponse) {
+            throw new TransientError('Response lost');
+        }
+
+        return (string) (9000 + count($this->fulfilments));
+    }
+
     private function record(string $method, array $args): void
     {
         $this->calls[] = [$method, $args];

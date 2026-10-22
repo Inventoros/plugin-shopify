@@ -6,8 +6,10 @@ namespace Inventoros\Plugins\Shopify\Support;
 
 use App\Models\Inventory\Product;
 use App\Models\Inventory\ProductVariant;
+use App\Models\Shipping\Shipment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Inventoros\Plugins\Shopify\Jobs\PushFulfilments;
 use Inventoros\Plugins\Shopify\Jobs\PushInventory;
 use Inventoros\Plugins\Shopify\Jobs\PushProducts;
 use Inventoros\Plugins\Shopify\Kit\Models\Connection;
@@ -15,6 +17,7 @@ use Inventoros\Plugins\Shopify\Kit\Models\Mapping;
 use Inventoros\Plugins\Shopify\Kit\Outbox\Outbox;
 use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
+use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\ProductPush;
 use Throwable;
@@ -98,6 +101,26 @@ final class Listeners
                 PushProducts::dispatch($connection->id)->delay(now()->addSeconds($policy->pushDelay()));
             }
         });
+    }
+
+    public static function shipmentShipped(mixed $shipment): void
+    {
+        if (! $shipment instanceof Shipment) {
+            return;
+        }
+        self::guard(function () use ($shipment): void {
+            $connection = FulfilmentPush::connectionFor($shipment);
+            if ($connection === null) {
+                return;
+            }
+            app(Outbox::class)->put($connection, FulfilmentPush::KIND, (string) $shipment->id);
+            PushFulfilments::dispatch($connection->id);
+        });
+    }
+
+    public static function shouldNotifyShipment(bool $send, mixed $shipment): bool
+    {
+        return $send && (! $shipment instanceof Shipment || FulfilmentPush::connectionFor($shipment) === null);
     }
 
     /**

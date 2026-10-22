@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Sendungen und Tracking an Shopify übertragen",
+        "fulfilmentsHint": "Erfordert Shopify-Versandberechtigungen und eine aktuelle Inventoros-Version. Shopify versendet die Versand-E-Mail.",
         "name": "Name",
         "namePlaceholder": "Hauptshop",
         "shopDomain": "Shop-Domain",
