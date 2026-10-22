@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Sync;
 
-use App\Services\ProductLocationStockService;
-use App\Services\WarehouseStockLevelService;
 use Illuminate\Support\Collection;
 use Inventoros\Plugins\Shopify\Kit\Mapping\MappingStore;
 use Inventoros\Plugins\Shopify\Kit\Models\Connection;
@@ -30,10 +28,9 @@ use Inventoros\Plugins\Shopify\Support\Core;
  *   product, warehouse location   the product's bins in that warehouse
  *   product, "all stock" location the product's total stock
  *   product without any bins      its total, at the primary location only
- *   variant                       the variant's stock, at the primary
- *                                 location only (core keeps variant stock
- *                                 without a location breakdown)
- * Negative stock is pushed as 0.
+ *   variant                       its own bins per warehouse on capable cores;
+ *                                 primary only on older releases
+ * Reservations reduce availability. Negative stock is pushed as 0.
  */
 final class InventoryPush
 {
@@ -47,8 +44,6 @@ final class InventoryPush
         private readonly Outbox $outbox,
         private readonly Locations $locations,
         private readonly SyncRecorder $recorder,
-        private readonly WarehouseStockLevelService $warehouseLevels,
-        private readonly ProductLocationStockService $bins,
     ) {}
 
     public static function subject(string $internalType, int $internalId): string
@@ -142,37 +137,34 @@ final class InventoryPush
             'internal_id' => $id,
         ];
 
-        if ($type === 'variant') {
-            $variant = Core::variants($connection->organization_id)->find($id);
-
-            if ($variant === null || $primary === null) {
-                return [];
-            }
-
-            return [$base + ['location_id' => $primary->external_id, 'location_label' => (string) $primary->external_label, 'quantity' => max(0, (int) $variant->stock)]];
-        }
-
-        $product = Core::products($connection->organization_id)->find($id);
-
-        if ($product === null) {
+        $target = $type === 'variant'
+            ? Core::variants($connection->organization_id)->find($id)
+            : Core::products($connection->organization_id)->find($id);
+        if ($target === null) {
             return [];
         }
-
-        $binned = $this->bins->totalAssigned($product) > 0;
-
-        foreach ($locations as $location) {
+        $stock = app(InventoryStock::class);
+        $budget = max(0, (int) $target->stock - $stock->held($target));
+        if ($type === 'variant' && ! InventoryStock::supportsVariantBins()) {
+            return $primary === null ? [] : [$base + ['location_id' => $primary->external_id, 'location_label' => (string) $primary->external_label, 'quantity' => $budget]];
+        }
+        $free = $stock->freeByWarehouse($target);
+        // Unassigned stock retains the historic primary-location fallback.
+        $unassigned = $stock->rows($target)->isEmpty();
+        foreach ($locations->sortBy(fn ($location) => [$location->id === $primary?->id ? 0 : 1, $location->id]) as $location) {
             if ($location->internal_type === Locations::ALL_STOCK) {
-                $quantity = (int) $product->stock;
-            } elseif (! $binned) {
+                $quantity = $budget;
+            } elseif ($unassigned) {
                 if ($primary === null || $location->id !== $primary->id) {
                     continue;
                 }
-                $quantity = (int) $product->stock;
+                $quantity = $budget;
             } else {
-                $quantity = $this->warehouseLevels->onHandInWarehouse($product->id, (int) $location->internal_id);
+                $quantity = min($budget, max(0, (int) $free->get((int) $location->internal_id, 0)));
             }
-
-            $rows[] = $base + ['location_id' => $location->external_id, 'location_label' => (string) $location->external_label, 'quantity' => max(0, $quantity)];
+            // A global hold cannot be advertised as available in several locations.
+            $budget -= $quantity;
+            $rows[] = $base + ['location_id' => $location->external_id, 'location_label' => (string) $location->external_label, 'quantity' => $quantity];
         }
 
         return $rows;

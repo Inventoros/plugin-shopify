@@ -76,15 +76,25 @@ final class InventoryPull
 
         $outcome = DB::transaction(function () use ($connection, $item, $location, $primary, $available, $actor, $reason, $notes) {
             if ($item->internal_type === 'variant') {
-                if ($primary === null || $location->id !== $primary->id) {
+                if (! InventoryStock::supportsVariantBins() && ($primary === null || $location->id !== $primary->id)) {
                     return 'skipped';
                 }
 
-                $variant = Core::variants($connection->organization_id)->lockForUpdate()->find($item->internal_id);
+                $variant = Core::variants($connection->organization_id)->find($item->internal_id);
+                if ($variant !== null) {
+                    Core::products($connection->organization_id)->whereKey($variant->product_id)->lockForUpdate()->firstOrFail();
+                    $variant = Core::variants($connection->organization_id)->lockForUpdate()->find($item->internal_id);
+                }
                 if (! $variant instanceof ProductVariant) {
                     return 'skipped';
                 }
 
+                if (InventoryStock::supportsVariantBins() && $location->internal_type !== Locations::ALL_STOCK && app(InventoryStock::class)->rows($variant)->isNotEmpty()) {
+                    return $this->adjustWarehouse($connection, $variant, $location, $available, $actor, $reason, $notes);
+                }
+                if ($location->internal_type !== Locations::ALL_STOCK && ($primary === null || $location->id !== $primary->id)) {
+                    return 'skipped';
+                }
                 $delta = $available - (int) $variant->stock;
                 if ($delta === 0) {
                     return 'unchanged';
@@ -135,25 +145,41 @@ final class InventoryPull
         return $outcome;
     }
 
+    private function adjustWarehouse(Connection $connection, ProductVariant $variant, Mapping $location, int $available, \App\Models\User $actor, string $reason, string $notes): string
+    {
+        $rows = app(InventoryStock::class)->rows($variant)->where('warehouse_id', (int) $location->internal_id);
+        $delta = max(0, $available) - (int) $rows->sum('quantity');
+        if ($delta === 0) {
+            return 'unchanged';
+        }
+        if ($delta > 0) {
+            StockAdjustment::adjustVariant($variant, $delta, self::ADJUSTMENT_TYPE, $reason, $notes, null, true, $actor, $this->binFor($connection, $variant, (int) $location->internal_id, $location));
+        } else {
+            $remaining = -$delta;
+            foreach ($rows->sortBy('location_id') as $row) {
+                $take = min($remaining, max(0, $row['quantity']));
+                if ($take > 0) {
+                    StockAdjustment::adjustVariant($variant->fresh(), -$take, self::ADJUSTMENT_TYPE, $reason, $notes, null, true, $actor, $row['location_id']);
+                    $remaining -= $take;
+                }
+            }
+        }
+        return 'applied';
+    }
+
     /**
      * The bin an adjustment in a warehouse lands in: the location
      * mapping's chosen bin, else the bin in that warehouse that already
      * holds the product, else the warehouse's first active location.
      */
-    private function binFor(Connection $connection, Product $product, int $warehouseId, Mapping $location): int
+    private function binFor(Connection $connection, Product|ProductVariant $product, int $warehouseId, Mapping $location): int
     {
         $chosen = $location->meta('bin_id');
         if ($chosen !== null && Core::locations($connection->organization_id)->where('warehouse_id', $warehouseId)->whereKey($chosen)->exists()) {
             return (int) $chosen;
         }
 
-        $holding = DB::table('product_location_stocks')
-            ->join('product_locations', 'product_locations.id', '=', 'product_location_stocks.location_id')
-            ->where('product_location_stocks.product_id', $product->id)
-            ->where('product_locations.warehouse_id', $warehouseId)
-            ->whereNull('product_locations.deleted_at')
-            ->orderByDesc('product_location_stocks.quantity')
-            ->value('product_location_stocks.location_id');
+        $holding = app(InventoryStock::class)->rows($product)->where('warehouse_id', $warehouseId)->sortByDesc('quantity')->first()['location_id'] ?? null;
 
         if ($holding !== null) {
             return (int) $holding;

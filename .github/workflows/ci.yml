@@ -63,6 +63,11 @@ jobs:
             config: phpunit.pgsql.xml
             port: 5432
             username: inventoros
+          - database: warehouse-core
+            config: phpunit.xml
+            port: ''
+            username: ''
+            core_ref: feat/warehouse-stock-overview
           - database: mysql
             config: phpunit.mysql.xml
             port: 3306
@@ -102,7 +107,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Inventoros/Inventoros
-          ref: ${{ env.INVENTOROS_REF }}
+          ref: ${{ matrix.core_ref || env.INVENTOROS_REF }}
           path: core
 
       - name: Setup PHP
@@ -173,7 +178,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Inventoros/Inventoros
-          ref: ${{ env.INVENTOROS_REF }}
+          ref: ${{ matrix.core_ref || env.INVENTOROS_REF }}
           path: core
 
       - name: Setup PHP
