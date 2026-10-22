@@ -95,7 +95,7 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
 - The sidebar item is translated on cores that translate plugin menu items (`label_key`).
 - Known limitations and SDK gaps:
   - Core has no stock reservations (SDK gap G4): an order placed in Shopify takes stock when it is imported, not when it is placed.
-  - Core keeps variant stock without a location breakdown, so variants sync with the primary location only.
+  - On cores with variant location stock, each variant syncs its own bins per mapped warehouse. Older cores retain primary-location variant sync. Local and global stock holds reduce pushed availability; warehouse quantities share a single SKU availability budget, allocated primary location first.
   - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
   - Fulfillments and tracking are not pushed to Shopify yet; refunds and order edits after import are not applied.
   - No public OAuth app yet (custom app tokens only); see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
