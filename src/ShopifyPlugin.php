@@ -57,7 +57,12 @@ final class ShopifyPlugin
 
     public function register(): void
     {
-        app(ExceptionHandler::class)->dontFlash(['access_token', 'webhook_secret', 'client_id']);
+        $handler = app(ExceptionHandler::class);
+        // Console renderers can decorate the HTTP handler without exposing
+        // its validation-input configuration (for example Collision).
+        if (method_exists($handler, 'dontFlash')) {
+            $handler->dontFlash(['access_token', 'webhook_secret', 'client_id']);
+        }
         $this->registerServices();
         $this->registerTranslations();
         $this->registerPermissions();
