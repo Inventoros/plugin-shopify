@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\PermanentError;
 use Inventoros\Plugins\Shopify\Shopify\AccessTokens;
+use Inventoros\Plugins\Shopify\Shopify\ClientFactory;
 use Inventoros\Plugins\Shopify\Shopify\ShopifyConnectionTester;
 use Inventoros\Plugins\Shopify\Tests\Concerns\ShopifyWorld;
+use Inventoros\Plugins\Shopify\Tests\Fakes\FakeShopifyClient;
 use Inventoros\Plugins\Shopify\Tests\TestCase;
 
 final class ClientCredentialsTest extends TestCase
@@ -58,6 +60,25 @@ final class ClientCredentialsTest extends TestCase
             $this->assertStringContainsString('same Shopify organization', $error->getMessage());
             $this->assertStringNotContainsString(self::SECRET, $error->getMessage());
         }
+    }
+
+    public function test_a_long_running_client_uses_the_renewed_token_on_its_next_page(): void
+    {
+        $this->store->forceFill(['settings' => ['auth_mode' => 'client_credentials'],
+            'credentials' => ['client_id' => 'app-client-123', 'webhook_secret' => self::SECRET]])->save();
+        Http::fake([
+            '*/admin/oauth/access_token' => Http::sequence()
+                ->push(['access_token' => 'token-before-expiry', 'expires_in' => 86399])
+                ->push(['access_token' => 'token-after-expiry', 'expires_in' => 86399]),
+            '*/graphql.json' => Http::response(FakeShopifyClient::fixture('shop')),
+        ]);
+        $client = (new ClientFactory)->make($this->store);
+        $client->shop();
+        $this->travel(24)->hours();
+        $client->shop();
+        $headers = Http::recorded(fn ($request) => str_ends_with($request->url(), 'graphql.json'))
+            ->map(fn ($pair) => $pair[0]->header('X-Shopify-Access-Token')[0])->all();
+        $this->assertSame(['token-before-expiry', 'token-after-expiry'], $headers);
     }
 
     public function test_client_mode_saves_without_a_manual_token_and_keeps_blank_secrets(): void

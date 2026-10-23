@@ -19,6 +19,7 @@ final class AccessTokens
 {
     public function token(Connection $connection): string
     {
+        $connection->refresh();
         if (! ShopDomain::valid($connection->shop_domain)) {
             throw new PermanentError('The shop domain is not a myshopify.com address.');
         }
@@ -29,6 +30,10 @@ final class AccessTokens
 
         $token = DB::transaction(function () use ($connection) {
             $locked = Connection::forOrganization($connection->organization_id)->whereKey($connection->id)->lockForUpdate()->firstOrFail();
+            if ($locked->setting('auth_mode', 'token') !== 'client_credentials') {
+                return $locked->credential('access_token')
+                    ?? throw new PermanentError('The connection has no saved access token.', authentication: true);
+            }
             $credentials = $locked->credentials ?? [];
             $expires = $credentials['token_expires_at'] ?? null;
             if (is_string($expires) && $locked->hasCredential('access_token') && Carbon::parse($expires)->gt(now()->addMinutes(2))) {
