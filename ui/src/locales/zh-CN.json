@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "将发货和物流追踪信息推送到 Shopify",
+        "fulfilmentsHint": "需要 Shopify 履约权限和更新后的 Inventoros。发货邮件由 Shopify 发送。",
         "name": "名称",
         "namePlaceholder": "主店铺",
         "shopDomain": "店铺域名",

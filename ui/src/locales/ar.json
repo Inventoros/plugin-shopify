@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "إرسال الشحنات والتتبع إلى Shopify",
+        "fulfilmentsHint": "يتطلب صلاحيات تجهيز الطلبات في Shopify وإصدار Inventoros محدثاً. يرسل Shopify بريد الشحن.",
         "name": "الاسم",
         "namePlaceholder": "المتجر الرئيسي",
         "shopDomain": "نطاق المتجر",

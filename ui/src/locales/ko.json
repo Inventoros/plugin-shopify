@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "배송 및 추적 정보를 Shopify로 전송",
+        "fulfilmentsHint": "Shopify 주문 처리 권한과 최신 Inventoros가 필요합니다. 배송 이메일은 Shopify에서 보냅니다.",
         "name": "이름",
         "namePlaceholder": "메인 스토어",
         "shopDomain": "상점 도메인",

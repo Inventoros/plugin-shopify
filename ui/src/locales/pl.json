@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Wysyłaj przesyłki i śledzenie do Shopify",
+        "fulfilmentsHint": "Wymaga uprawnień realizacji Shopify i aktualnej wersji Inventoros. Shopify wysyła wiadomość o wysyłce.",
         "name": "Nazwa",
         "namePlaceholder": "Sklep główny",
         "shopDomain": "Domena sklepu",

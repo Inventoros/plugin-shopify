@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.4.0] - Unreleased
+
+### Added
+
+- Optional shipment fulfilment and tracking push, destination inventory activation and Shopify-owned shipping notifications. Exact line mappings and persisted send claims prevent duplicate fulfilments. Historical/non-stock orders are excluded.
+
 ## [1.3.0] - Unreleased
 
 ### Added

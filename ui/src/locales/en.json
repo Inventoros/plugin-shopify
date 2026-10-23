@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Push shipments and tracking to Shopify",
+        "fulfilmentsHint": "Requires Shopify fulfilment permissions and an updated Inventoros core. Shopify sends the shipping email.",
         "paymentsUpgrade": "Update Inventoros core to enable imported-payment records.",
         "importPayments": "Record Shopify payments and refunds",
         "paymentsHint": "Imports completed transactions into the payment ledger. This does not charge or refund customers. Reconcile existing manual payment entries first to prevent duplicates.",
@@ -26,6 +28,7 @@
         "authClient": "App client credentials (automatic renewal)",
         "authHint": "Client credentials work when the app and store belong to the same Shopify organization. The API secret key is also the app client secret. Tokens renew automatically before expiry.",
         "clientId": "App client ID",
+
         "name": "Name",
         "namePlaceholder": "Main store",
         "shopDomain": "Shop domain",

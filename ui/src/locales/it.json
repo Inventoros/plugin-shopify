@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Invia spedizioni e tracciamento a Shopify",
+        "fulfilmentsHint": "Richiede i permessi di evasione Shopify e Inventoros aggiornato. Shopify invia l’email di spedizione.",
         "name": "Nome",
         "namePlaceholder": "Negozio principale",
         "shopDomain": "Dominio del negozio",

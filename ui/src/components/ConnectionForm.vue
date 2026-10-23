@@ -30,7 +30,9 @@ const form = useForm({
     stock_source: settings.stock_source ?? 'inventoros',
     product_source: settings.product_source ?? 'shopify',
     import_orders: settings.import_orders ?? true,
+    push_fulfilments: settings.push_fulfilments ?? false,
     import_payments: settings.import_payments ?? false,
+
     import_test_orders: settings.import_test_orders ?? false,
     orders_since: settings.orders_since ?? today,
     history_before: settings.history_before ?? '',
@@ -134,6 +136,11 @@ const submit = () => {
             <p v-if="form.errors.import_payments" class="shopify-error">{{ form.errors.import_payments }}</p>
         </div>
 
+        <div class="shopify-field">
+            <label class="shopify-check"><input v-model="form.push_fulfilments" type="checkbox" />{{ t('form.pushFulfilments') }}</label>
+            <p class="shopify-hint">{{ t('form.fulfilmentsHint') }}</p>
+            <p v-if="form.errors.push_fulfilments" class="shopify-error">{{ form.errors.push_fulfilments }}</p>
+        </div>
         <div class="shopify-field">
             <label class="shopify-label" :for="`${prefix}-since`">{{ t('form.ordersSince') }}</label>
             <input :id="`${prefix}-since`" v-model="form.orders_since" class="shopify-input" type="date" :disabled="!form.import_orders" />

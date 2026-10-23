@@ -28,6 +28,7 @@ use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Support\Core;
 use Inventoros\Plugins\Shopify\Support\Permissions;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
+use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
@@ -94,6 +95,9 @@ final class ActionsController extends Controller
             unset($credentials['client_id'], $credentials['token_expires_at']);
         }
 
+        if (($data['push_fulfilments'] ?? false) && ! $record->setting('push_fulfilments', false)) {
+            $retest = true;
+        }
         if (($data['import_payments'] ?? false) && ! $record->setting('import_payments', false)) {
             $retest = true; // Register the refund topic when payment imports are enabled.
         }
@@ -401,11 +405,17 @@ final class ActionsController extends Controller
             'stock_source' => ['required', Rule::in(SyncPolicy::STOCK_SOURCES)],
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
             'import_orders' => ['required', 'boolean'],
+            'push_fulfilments' => ['nullable', 'boolean'],
             'import_payments' => ['nullable', 'boolean'],
+
             'import_test_orders' => ['nullable', 'boolean'],
             'orders_since' => ['required_with:history_before', 'nullable', 'date'],
             'history_before' => ['nullable', 'date', 'after_or_equal:orders_since', 'before_or_equal:today'],
         ]);
+
+        if (($data['push_fulfilments'] ?? false) && ! FulfilmentPush::supported()) {
+            throw ValidationException::withMessages(['push_fulfilments' => 'Update Inventoros to a version with shipment notification ownership before enabling this option.']);
+        }
 
         if (($data['import_payments'] ?? false) && ! Payments::supported()) {
             throw ValidationException::withMessages(['import_payments' => 'Update Inventoros core to enable imported-payment records.']);

@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Gönderileri ve takibi Shopify’a aktar",
+        "fulfilmentsHint": "Shopify sipariş karşılama izinleri ve güncel Inventoros gerekir. Kargo epostasını Shopify gönderir.",
         "name": "Ad",
         "namePlaceholder": "Ana mağaza",
         "shopDomain": "Mağaza alanı",

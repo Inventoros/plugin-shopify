@@ -79,6 +79,17 @@ interface ShopifyClient
      */
     public function setInventoryQuantities(array $quantities, string $idempotencyKey): void;
 
+    /** Unfulfilled line ids and quantities, with destination stock activation state. */
+    public function fulfilmentOrders(string $orderId, string $locationId): array;
+
+    public function activateInventory(string $inventoryItemId, string $locationId, string $key): void;
+
+    /** Move only these explicit line ids/quantities; callers re-read afterwards. */
+    public function moveFulfilmentOrder(string $id, string $locationId, array $lines): void;
+
+    /** Returns the created fulfilment id. Not safe to replay after an ambiguous response. */
+    public function createFulfilment(array $fulfilment, string $message): string;
+
     public function updateProductTitle(string $productId, string $title): void;
 
     /**

@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "出荷と追跡情報をShopifyに送信",
+        "fulfilmentsHint": "Shopifyのフルフィルメント権限と更新済みのInventorosが必要です。出荷メールはShopifyが送信します。",
         "name": "名前",
         "namePlaceholder": "メインストア",
         "shopDomain": "ショップドメイン",

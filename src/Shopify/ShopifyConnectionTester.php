@@ -41,6 +41,10 @@ final class ShopifyConnectionTester implements ConnectionTester
                 $required[] = 'read_all_orders';
             }
         }
+        if ($policy->pushesFulfilments()) {
+            $required = array_merge($required, ['read_orders', 'read_merchant_managed_fulfillment_orders', 'write_merchant_managed_fulfillment_orders', 'write_inventory']);
+        }
+        $required = array_values(array_unique($required));
         $granted = $shop['scopes'] ?? [];
         $missing = array_values(array_filter($required, fn ($scope) => ! in_array($scope, $granted, true)
             && ! (str_starts_with($scope, 'read_') && in_array('write_'.substr($scope, 5), $granted, true))));

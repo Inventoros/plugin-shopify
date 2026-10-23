@@ -6,12 +6,14 @@ namespace Inventoros\Plugins\Shopify\Console;
 
 use Illuminate\Console\Command;
 use Inventoros\Plugins\Shopify\Jobs\ProcessWebhook;
+use Inventoros\Plugins\Shopify\Jobs\PushFulfilments;
 use Inventoros\Plugins\Shopify\Jobs\PushInventory;
 use Inventoros\Plugins\Shopify\Jobs\PushProducts;
 use Inventoros\Plugins\Shopify\Jobs\RunSync;
 use Inventoros\Plugins\Shopify\Kit\Models\Connection;
 use Inventoros\Plugins\Shopify\Kit\Models\WebhookInboxEntry;
 use Inventoros\Plugins\Shopify\Kit\Outbox\Outbox;
+use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\ProductPush;
 
@@ -57,6 +59,10 @@ final class SyncCommand extends Command
 
             if ($outbox->hasDue($connection, InventoryPush::KIND)) {
                 PushInventory::dispatch($connection->id);
+            }
+
+            if ($outbox->hasDue($connection, FulfilmentPush::KIND)) {
+                PushFulfilments::dispatch($connection->id);
             }
 
             if ($outbox->hasDue($connection, ProductPush::KIND)) {

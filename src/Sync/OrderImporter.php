@@ -164,6 +164,21 @@ final class OrderImporter
                     DB::afterCommit(fn () => do_action('order_created', $created->refresh()->load('items'), $actor));
                 }
                 $this->payments->sync($connection, $created, $transactions);
+                $createdLines = $created->items()->orderBy('id')->get();
+                if ($createdLines->count() !== count($items)) {
+                    throw new PermanentError('The imported order lines changed during creation; exact fulfilment mapping is not possible.');
+                }
+                $lineIds = [];
+                foreach ($createdLines as $index => $createdLine) {
+                    $source = $items[$index];
+                    if ((int) $createdLine->product_id !== (int) $source['product_id'] || (int) $createdLine->product_variant_id !== (int) ($source['product_variant_id'] ?? 0) || (int) $createdLine->quantity !== $source['quantity']) {
+                        throw new PermanentError('The imported order lines were reordered; exact fulfilment mapping is not possible.');
+                    }
+                    $lineIds[(string) $createdLine->id] = $source['_shopify_line_id'];
+                }
+                $metadata = $created->metadata;
+                $metadata['shopify']['line_items'] = $lineIds;
+                $created->update(['metadata' => $metadata]);
                 $this->mappings->link($locked, 'order', (int) $created->id);
 
                 return $created;
@@ -280,6 +295,7 @@ final class OrderImporter
                 $item = ['product_id' => (int) $mapping->internal_id];
             }
 
+            $item['_shopify_line_id'] = (string) $line['id'];
             $item['quantity'] = (int) $line['quantity'];
             $item['unit_price'] = $line['price'];
 

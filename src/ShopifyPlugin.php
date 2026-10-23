@@ -177,6 +177,8 @@ final class ShopifyPlugin
     private function registerHooks(): void
     {
         add_action('stock_changed', [Listeners::class, 'stockChanged']);
+        add_action('shipment_shipped', [Listeners::class, 'shipmentShipped']);
+        add_filter('shipment_should_notify_customer', [Listeners::class, 'shouldNotifyShipment']);
         add_action('product_updated', [Listeners::class, 'catalogChanged']);
         add_action('variant_updated', [Listeners::class, 'catalogChanged']);
 

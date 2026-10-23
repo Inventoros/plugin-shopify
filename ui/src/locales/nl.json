@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "pushFulfilments": "Zendingen en tracking naar Shopify sturen",
+        "fulfilmentsHint": "Vereist Shopify-afhandelingsrechten en een bijgewerkte Inventoros-versie. Shopify verstuurt de verzendmail.",
         "name": "Naam",
         "namePlaceholder": "Hoofdwinkel",
         "shopDomain": "Winkeldomein",

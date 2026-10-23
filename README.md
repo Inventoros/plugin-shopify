@@ -97,7 +97,7 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
   - Orders take stock when imported. External Shopify checkout reservations are not created in Inventoros before the order webhook arrives.
   - On cores with variant location stock, each variant syncs its own bins per mapped warehouse. Older cores retain primary-location variant sync. Local and global stock holds reduce pushed availability; warehouse quantities share a single SKU availability budget, allocated primary location first.
   - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
-  - Fulfillments and tracking are not pushed to Shopify yet; order edits after import are not applied. Completed payment/refund records can be imported with the optional ledger setting.
+  - Optional shipment fulfilment and tracking push is available on cores with shipment notification ownership; order edits after import are not applied. Completed payment/refund records can be imported with the optional ledger setting.
   - Public multi-merchant OAuth installation is not implemented; see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
 
 ## Develop and test
@@ -211,3 +211,15 @@ The API reader checks the exact transaction count and refuses incomplete lists
 or orders with more than 100 transactions for manual review. It does not
 silently import a subset. Financial records and new-order creation are atomic;
 an invalid transaction leaves no partial order/payment ledger.
+
+## Shipment fulfilment and tracking
+
+After upgrading the core with shipment notification ownership, grant the custom app `read_merchant_managed_fulfillment_orders` and `write_merchant_managed_fulfillment_orders`, plus `write_inventory` for destination activation, then enable **Push shipments and tracking to Shopify** in the connection settings. This is off by default. Map each ship-from warehouse to exactly one Shopify location.
+
+Newly imported order lines retain their exact Shopify line ids. When an Inventoros shipment is marked shipped, queued work fulfils only those shipped quantities, includes tracking, and lets Shopify send the shipping email if the customer notification option is enabled. The core email is suppressed for those shipments. Older imported orders without exact line mappings must be fulfilled in Shopify. Shipping never deducts Inventoros stock a second time.
+
+If routing differs, the plugin activates previously unstocked inventory items at the destination, without resetting existing quantities, before moving only the shipment’s fulfilment-order lines. Moves re-read Shopify because order and line ids may change. Fulfilment holds and unsupported service requests stop the push for review. Read pages and definite throttles use the existing delayed retries.
+
+Shopify’s [fulfillmentCreate](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentCreate) does not document a creation idempotency key. The plugin commits a send claim before creation, persists the returned id, and refuses to blindly replay an uncertain response or a killed worker’s claim. Check the failed operation in Sync activity and verify or finish that shipment in Shopify; repeated retries cannot create another fulfilment. This conservative stop also applies to rejected creation responses. [Destination activation](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/inventoryActivate) uses its required idempotency key; [fulfilment-order moves](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentOrderMove) require the items to be stocked at the destination.
+
+Historical orders and orders that never committed stock are excluded from shipment push. Fulfilment orders and their lines use bounded, complete read pages; missing/repeated cursors stop partial data before any shipment mutation.

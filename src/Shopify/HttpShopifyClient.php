@@ -197,6 +197,72 @@ final class HttpShopifyClient implements ShopifyClient
         $this->assertNoUserErrors($data['inventorySetQuantities']['userErrors'] ?? []);
     }
 
+    public function fulfilmentOrders(string $orderId, string $locationId): array
+    {
+        $result = [];
+        $after = null;
+        $seen = [];
+        do {
+            $data = $this->read(FulfilmentQueries::ORDERS, ['id' => Gid::make('Order', $orderId), 'location' => Gid::make('Location', $locationId), 'after' => $after], 600);
+            if (! is_array($data['order'] ?? null)) {
+                throw new PermanentError('The Shopify order no longer exists or is not accessible.');
+            }
+            $page = $data['order']['fulfillmentOrders'] ?? [];
+            foreach ($page['nodes'] ?? [] as $order) {
+                $order = $this->complete($order, 'lineItems', FulfilmentQueries::LINES, 'fulfillmentOrder', 600, ['location' => Gid::make('Location', $locationId)]);
+                $result[] = [
+                    'id' => Gid::id($order['id']), 'status' => $order['status'], 'request_status' => $order['requestStatus'],
+                    'location_id' => Gid::id($order['assignedLocation']['location']['id'] ?? null),
+                    'lines' => array_map(fn ($line) => [
+                        'id' => Gid::id($line['id']), 'line_id' => Gid::id($line['lineItem']['id']),
+                        'inventory_item_id' => Gid::id($line['inventoryItemId'] ?? null), 'remaining' => (int) $line['remainingQuantity'],
+                        'stocked' => ($line['variant']['inventoryItem']['inventoryLevel'] ?? null) !== null,
+                    ], $order['lineItems']['nodes'] ?? []),
+                ];
+            }
+            $more = (bool) ($page['pageInfo']['hasNextPage'] ?? false);
+            $after = $page['pageInfo']['endCursor'] ?? null;
+            if ($more && (! is_string($after) || $after === '' || isset($seen[$after]))) {
+                throw new PermanentError('Shopify returned a missing or repeated fulfilment order cursor; refusing partial data.');
+            }
+            if ($more) {
+                $seen[$after] = true;
+            }
+        } while ($more);
+
+        return $result;
+    }
+
+    public function activateInventory(string $inventoryItemId, string $locationId, string $key): void
+    {
+        $data = $this->query(FulfilmentQueries::ACTIVATE, ['item' => Gid::make('InventoryItem', $inventoryItemId), 'location' => Gid::make('Location', $locationId), 'key' => $key], 10);
+        $this->assertNoUserErrors($data['inventoryActivate']['userErrors'] ?? []);
+    }
+
+    public function moveFulfilmentOrder(string $id, string $locationId, array $lines): void
+    {
+        if ($lines === []) {
+            throw new PermanentError('A shipment move must name its line quantities.');
+        }
+        $data = $this->query(FulfilmentQueries::MOVE, [
+            'id' => Gid::make('FulfillmentOrder', $id), 'location' => Gid::make('Location', $locationId),
+            'lines' => array_map(fn ($line) => ['id' => Gid::make('FulfillmentOrderLineItem', $line['id']), 'quantity' => $line['quantity']], $lines),
+        ], 10);
+        $this->assertNoUserErrors($data['fulfillmentOrderMove']['userErrors'] ?? []);
+    }
+
+    public function createFulfilment(array $fulfilment, string $message): string
+    {
+        $data = $this->query(FulfilmentQueries::CREATE, ['fulfillment' => $fulfilment, 'message' => $message], 10);
+        $this->assertNoUserErrors($data['fulfillmentCreate']['userErrors'] ?? []);
+        $id = Gid::id($data['fulfillmentCreate']['fulfillment']['id'] ?? null);
+        if ($id === null) {
+            throw new TransientError('Shopify did not return a fulfilment id.');
+        }
+
+        return $id;
+    }
+
     public function updateProductTitle(string $productId, string $title): void
     {
         $data = $this->query(Queries::UPDATE_PRODUCT, [
@@ -280,7 +346,7 @@ final class HttpShopifyClient implements ShopifyClient
     }
 
     /** Finish a nested connection before returning a record to an importer. */
-    private function complete(array $node, string $field, string $query, string $root, int $cost): array
+    private function complete(array $node, string $field, string $query, string $root, int $cost, array $variables = []): array
     {
         $connection = $node[$field] ?? [];
         $seen = [];
@@ -290,7 +356,7 @@ final class HttpShopifyClient implements ShopifyClient
                 throw new PermanentError('Shopify returned a missing or repeated pagination cursor; refusing a partial record.');
             }
             $seen[$cursor] = true;
-            $data = $this->read($query, ['id' => $node['id'], 'after' => $cursor], $cost);
+            $data = $this->read($query, ['id' => $node['id'], 'after' => $cursor] + $variables, $cost);
             if (! is_array($data[$root][$field] ?? null)) {
                 throw new TransientError('Shopify omitted a nested page; refusing a partial record. Retry the sync.');
             }
