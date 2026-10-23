@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.1.0] - Unreleased
+
+### Added
+
+- Optional client-credentials authentication for apps and stores in the same Shopify organization, with encrypted expiring tokens and automatic renewal.
+- Connection tests identify missing scopes for the enabled sync directions. Validation errors never flash credentials or client IDs.
+
 ## [1.0.3] - Unreleased
 
 ### Fixed

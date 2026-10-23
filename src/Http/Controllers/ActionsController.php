@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Inventoros\Plugins\Shopify\Jobs\ImportOrder;
 use Inventoros\Plugins\Shopify\Jobs\PushInventory;
 use Inventoros\Plugins\Shopify\Jobs\RunSync;
@@ -29,7 +31,7 @@ use Inventoros\Plugins\Shopify\Sync\Catalog;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
-use InvalidArgumentException;
+use Inventoros\Plugins\Shopify\Sync\SkuMatcher;
 
 /**
  * Every write the pages make, under /p/shopify/actions (web group: session,
@@ -55,7 +57,7 @@ final class ActionsController extends Controller
             'acting_user_id' => $user->id,
             'name' => $data['name'],
             'shop_domain' => $data['shop_domain'],
-            'credentials' => ['access_token' => $data['access_token'], 'webhook_secret' => $data['webhook_secret']],
+            'credentials' => array_filter(['access_token' => $data['access_token'] ?? null, 'webhook_secret' => $data['webhook_secret'], 'client_id' => $data['client_id'] ?? null]),
             'status' => Connection::PENDING,
             'settings' => SyncPolicy::sanitize($data + ['orders_since' => $data['orders_since'] ?? now()->toDateString()]),
         ]);
@@ -74,11 +76,21 @@ final class ActionsController extends Controller
         $credentials = $record->credentials ?? [];
         $retest = false;
 
-        foreach (['access_token', 'webhook_secret'] as $key) {
+        foreach (['access_token', 'webhook_secret', 'client_id'] as $key) {
             if (($data[$key] ?? '') !== '') {
                 $credentials[$key] = $data[$key];
                 $retest = true;
             }
+        }
+
+        if ($data['auth_mode'] !== $record->setting('auth_mode', 'token')) {
+            $retest = true;
+        }
+        if ($data['auth_mode'] === 'client_credentials' && $retest) {
+            unset($credentials['access_token'], $credentials['token_expires_at']);
+        }
+        if ($data['auth_mode'] === 'token') {
+            unset($credentials['client_id'], $credentials['token_expires_at']);
         }
 
         $record->forceFill([
@@ -221,7 +233,7 @@ final class ActionsController extends Controller
             }
 
             $data = $request->validate(['sku' => ['required', 'string', 'max:191']]);
-            $candidates = \Inventoros\Plugins\Shopify\Sync\SkuMatcher::candidates($organizationId, $data['sku']);
+            $candidates = SkuMatcher::candidates($organizationId, $data['sku']);
 
             if (count($candidates) !== 1) {
                 throw ValidationException::withMessages(['sku' => count($candidates) === 0
@@ -369,12 +381,17 @@ final class ActionsController extends Controller
             $request->merge(['shop_domain' => ShopDomain::normalize((string) $request->input('shop_domain', ''))]);
         }
 
+        $request->merge(['auth_mode' => $request->input('auth_mode', $existing?->setting('auth_mode', 'token') ?? 'token')]);
+        $clientMode = $request->input('auth_mode') === 'client_credentials';
         $secret = $existing === null ? 'required' : 'nullable';
+        $tokenRequired = ! $clientMode && ($existing === null || $existing->setting('auth_mode', 'token') !== 'token');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'shop_domain' => $existing === null ? ['required', 'string', 'max:191'] : ['exclude'],
-            'access_token' => [$secret, 'string', 'max:255'],
+            'auth_mode' => ['required', Rule::in(['token', 'client_credentials'])],
+            'client_id' => [$clientMode && ! $existing?->hasCredential('client_id') ? 'required' : 'nullable', 'string', 'max:255'],
+            'access_token' => [$tokenRequired ? 'required' : 'nullable', 'string', 'max:255'],
             'webhook_secret' => [$secret, 'string', 'max:255'],
             'stock_source' => ['required', Rule::in(SyncPolicy::STOCK_SOURCES)],
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
@@ -390,7 +407,7 @@ final class ActionsController extends Controller
         return $data;
     }
 
-    private function authorizeManage(Request $request): \App\Models\User
+    private function authorizeManage(Request $request): User
     {
         $user = $request->user();
 

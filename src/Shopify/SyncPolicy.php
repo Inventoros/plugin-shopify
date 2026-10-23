@@ -29,6 +29,7 @@ final class SyncPolicy
     public const PRODUCT_SOURCES = ['shopify', 'inventoros'];
 
     public const DEFAULTS = [
+        'auth_mode' => 'token',
         'stock_source' => 'inventoros',
         'product_source' => 'shopify',
         'import_orders' => true,
@@ -51,6 +52,10 @@ final class SyncPolicy
     public static function sanitize(array $input, array $current = []): array
     {
         $settings = array_merge(self::DEFAULTS, array_intersect_key($current, self::DEFAULTS));
+
+        if (in_array($input['auth_mode'] ?? null, ['token', 'client_credentials'], true)) {
+            $settings['auth_mode'] = $input['auth_mode'];
+        }
 
         if (in_array($input['stock_source'] ?? null, self::STOCK_SOURCES, true)) {
             $settings['stock_source'] = $input['stock_source'];

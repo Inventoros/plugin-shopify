@@ -46,7 +46,7 @@ final class FakeShopifyClient implements ShopifyClient
     public function __construct()
     {
         $shop = self::fixture('shop')['data']['shop'];
-        $this->shop = ['id' => '77001', 'name' => $shop['name'], 'domain' => $shop['myshopifyDomain'], 'currency' => $shop['currencyCode'], 'plan' => $shop['plan']['displayName']];
+        $this->shop = ['id' => '77001', 'name' => $shop['name'], 'domain' => $shop['myshopifyDomain'], 'currency' => $shop['currencyCode'], 'plan' => $shop['plan']['displayName'], 'scopes' => ['read_products', 'write_products', 'read_inventory', 'write_inventory', 'read_locations', 'read_orders']];
 
         foreach (self::fixture('locations')['data']['locations']['nodes'] as $node) {
             $this->locations[] = ['id' => substr($node['id'], strrpos($node['id'], '/') + 1), 'name' => $node['name'], 'active' => $node['isActive']];

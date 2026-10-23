@@ -31,7 +31,7 @@ interface ShopifyClient
     public const API_VERSION = '2026-07';
 
     /**
-     * @return array{id: string, name: string, domain: string, currency: string, plan: string|null}
+     * @return array{id: string, name: string, domain: string, currency: string, plan: string|null, scopes: array<int, string>}
      */
     public function shop(): array;
 
