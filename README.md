@@ -149,7 +149,7 @@ Shopify can assign field costs, so response throttle metadata remains authoritat
 Choose **App client credentials** for apps and stores in the same Shopify
 organization. Enter the app client ID and API secret key (its client secret).
 The server exchanges these for an expiring token, keeps it encrypted alongside
-its expiry, and renews it two minutes before expiration when a client is built.
+its expiry, and renews it two minutes before expiration before each API request, including later pages of an already-running client.
 A connection-row lock prevents concurrent workers from minting duplicate tokens.
 Manual tokens remain supported; they are never replaced automatically.
 
