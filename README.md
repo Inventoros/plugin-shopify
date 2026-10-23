@@ -161,3 +161,24 @@ No OAuth redirect/authorization-code flow is provided by this option.
 
 See [Shopify client credentials](https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant)
 and [token lifetimes](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens).
+
+### Historical order backfills
+
+An optional **Import orders before this date as history** cutoff separates past
+sales from new stock-moving orders. Set the import start date to the earliest
+order you want, select the history cutoff, test the connection, then run a full
+sync. Dates use UTC. Shopify access beyond 60 days requires approved
+`read_all_orders` access as well as order access; connection tests name it when
+an older start date is configured.
+
+Orders before the cutoff use core's historical import path: no stock/bin/serial
+allocation, reservations, approval requests or new-order announcements. Fulfilled
+orders are recorded as shipped, cancelled orders as cancelled, and other orders
+as pending; exact remote statuses remain in metadata. No shipments are created.
+Subsequent updates and cancellations remain historical even if the cutoff changes,
+and never restock the goods. Orders on/after the cutoff keep the normal stock path.
+
+Variant mappings are still required. Orders skipped by the start-date filter in
+this version can be revisited as history after changing the range. Manually ignored
+records and ignored records with no recorded reason stay ignored. Existing live
+orders are never converted into history by changing a setting.

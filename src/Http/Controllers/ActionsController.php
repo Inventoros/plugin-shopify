@@ -397,7 +397,8 @@ final class ActionsController extends Controller
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
             'import_orders' => ['required', 'boolean'],
             'import_test_orders' => ['nullable', 'boolean'],
-            'orders_since' => ['nullable', 'date'],
+            'orders_since' => ['required_with:history_before', 'nullable', 'date'],
+            'history_before' => ['nullable', 'date', 'after_or_equal:orders_since', 'before_or_equal:today'],
         ]);
 
         if ($existing === null && ! ShopDomain::valid($data['shop_domain'])) {

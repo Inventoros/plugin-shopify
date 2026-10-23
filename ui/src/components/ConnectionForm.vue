@@ -31,6 +31,7 @@ const form = useForm({
     import_orders: settings.import_orders ?? true,
     import_test_orders: settings.import_test_orders ?? false,
     orders_since: settings.orders_since ?? today,
+    history_before: settings.history_before ?? '',
 });
 
 const submit = () => {
@@ -129,6 +130,13 @@ const submit = () => {
             <label class="shopify-label" :for="`${prefix}-since`">{{ t('form.ordersSince') }}</label>
             <input :id="`${prefix}-since`" v-model="form.orders_since" class="shopify-input" type="date" :disabled="!form.import_orders" />
             <p v-if="form.errors.orders_since" class="shopify-error">{{ form.errors.orders_since }}</p>
+        </div>
+
+        <div class="shopify-field">
+            <label class="shopify-label" :for="`${prefix}-history`">{{ t('form.historyBefore') }}</label>
+            <input :id="`${prefix}-history`" v-model="form.history_before" class="shopify-input" type="date" :disabled="!form.import_orders" />
+            <p class="shopify-faint">{{ t('form.historyHint') }}</p>
+            <p v-if="form.errors.history_before" class="shopify-error">{{ form.errors.history_before }}</p>
         </div>
 
         <div class="shopify-field shopify-field--wide">
