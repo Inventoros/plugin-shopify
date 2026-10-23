@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.0.3] - Unreleased
+
+### Fixed
+
+- Bound GraphQL query sizes and finish nested product variants, order lines and inventory locations before returning records. Retry short throttles on the same read page; refuse broken cursors and partial records.
+
 ## [1.0.2] - 2026-10-07
 
 ### Fixed

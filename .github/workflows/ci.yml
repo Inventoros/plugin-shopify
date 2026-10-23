@@ -63,11 +63,6 @@ jobs:
             config: phpunit.pgsql.xml
             port: 5432
             username: inventoros
-          - database: warehouse-core
-            config: phpunit.xml
-            port: ''
-            username: ''
-            core_ref: feat/warehouse-stock-overview
           - database: mysql
             config: phpunit.mysql.xml
             port: 3306

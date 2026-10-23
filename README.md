@@ -131,3 +131,15 @@ README screenshots: `SCREENSHOTS=1 npx playwright test -c plugins/shopify/e2e/pl
 ## License
 
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
+
+### GraphQL page sizes and rate limits
+
+Catalog and order reads use small parent pages and finish nested variant, order
+line and inventory-location connections before returning a record. Large
+products or orders are not silently truncated. A missing/repeated cursor refuses
+partial data. Read-only requests can wait on the same page up to three times,
+with a total wait of at most 30 seconds; longer throttles return to the existing
+queue retry policy. Mutations keep their existing idempotency and queue retries.
+
+Query shapes are bounded below Shopify's default 1,000-point single-query limit.
+Shopify can assign field costs, so response throttle metadata remains authoritative.
