@@ -36,9 +36,10 @@ final class HttpShopifyClient implements ShopifyClient
 
     public function __construct(
         private readonly string $shopDomain,
-        private readonly string $accessToken,
+        private string $accessToken,
         private readonly CostBudget $budget,
         private readonly string $apiVersion = self::API_VERSION,
+        private readonly ?\Closure $tokenResolver = null,
     ) {}
 
     public function shop(): array
@@ -223,6 +224,9 @@ final class HttpShopifyClient implements ShopifyClient
      */
     private function query(string $query, array $variables, int $expectedCost): array
     {
+        if ($this->tokenResolver !== null) {
+            $this->accessToken = ($this->tokenResolver)();
+        }
         $this->budget->reserve($expectedCost);
 
         try {
@@ -232,6 +236,7 @@ final class HttpShopifyClient implements ShopifyClient
             ])
                 ->timeout(30)
                 ->connectTimeout(10)
+                ->withOptions(['allow_redirects' => false])
                 ->post($this->endpoint(), ['query' => $query, 'variables' => (object) array_filter($variables, fn ($v) => $v !== null)]);
         } catch (ConnectionException $error) {
             throw new TransientError('Could not reach Shopify: '.$this->clean($error->getMessage()));

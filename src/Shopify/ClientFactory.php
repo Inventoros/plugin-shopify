@@ -17,6 +17,7 @@ class ClientFactory
     {
         $token = app(AccessTokens::class)->token($connection);
 
-        return new HttpShopifyClient($connection->shop_domain, $token, CostBudget::for($connection->id));
+        return new HttpShopifyClient($connection->shop_domain, $token, CostBudget::for($connection->id),
+            tokenResolver: fn () => app(AccessTokens::class)->token($connection));
     }
 }
