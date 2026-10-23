@@ -116,6 +116,14 @@ vendor/bin/phpunit -c plugins/shopify/phpunit.mysql.xml    # MySQL
 
 README screenshots: `SCREENSHOTS=1 npx playwright test -c plugins/shopify/e2e/playwright.config.ts` against a served, seeded core (see the config file).
 
+### CI and releases
+
+CI validates the workflow files, builds the runtime UI, runs the plugin tests on SQLite, PostgreSQL and MySQL, and checks the core plugin system. It then builds the ZIP and runs the real install, activation, deactivation, reactivation and deletion cycle. The manual CI action accepts an Inventoros branch, tag or SHA for compatibility checks.
+
+Pushing a `vX.Y.Z` tag runs that same verification pipeline before publishing. The tag must match `plugin.json` and have a changelog section. The release downloads the verified ZIP, checks its SHA-256 and publishes that artifact; it does not rebuild the archive. Only the publishing job has repository write access. CI artifacts expire after seven days; published release assets remain available.
+
+If a private-repository run fails with no steps and an annotation about account payments or a spending limit, GitHub has refused to allocate a runner. Restore the account's Actions billing or allowance before retrying; changing workflow code cannot clear that account restriction.
+
 ## FAQ
 
 **Does Inventoros slow down when Shopify is slow or down?** No. Requests only queue work; Shopify outages show up as retries and failed items, and the connection pauses itself after repeated failures.
