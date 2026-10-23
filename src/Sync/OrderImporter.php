@@ -52,6 +52,7 @@ final class OrderImporter
         private readonly Locations $locations,
         private readonly SyncRecorder $recorder,
         private readonly OrderService $orders,
+        private readonly Payments $payments,
     ) {}
 
     public static function reference(Connection $connection, string $orderId): string
@@ -129,11 +130,12 @@ final class OrderImporter
             return $this->ignore($connection, $id, $label, $updatedAt, 'no line items that ship from stock', $run);
         }
 
+        $transactions = $this->payments->read($connection, $id);
         $reference = self::reference($connection, $id);
         $mapping = $this->mappings->remember($connection, self::ENTITY, $id, ['external_label' => $label]);
 
         try {
-            $created = DB::transaction(function () use ($connection, $mapping, $reference, $order, $items, $actor, $label, $historical) {
+            $created = DB::transaction(function () use ($connection, $mapping, $reference, $order, $items, $actor, $label, $historical, $transactions) {
                 // Serialize concurrent imports of the same order on its mapping row.
                 $locked = Mapping::query()->whereKey($mapping->id)->lockForUpdate()->first();
 
@@ -155,7 +157,13 @@ final class OrderImporter
                     $data['metadata']['shopify']['historical'] = true;
                     $data['notes'] = 'Historical Shopify import: '.$label.'. No current stock was changed.';
                 }
-                $created = $this->orders->create($data, $actor, 'shopify', ! $historical, ! $historical);
+                $created = $this->orders->create($data, $actor, 'shopify', ! $historical, false);
+                if (! $historical) {
+                    // Announce the complete aggregate only after order, payment
+                    // records and mapping have all committed successfully.
+                    DB::afterCommit(fn () => do_action('order_created', $created->refresh()->load('items'), $actor));
+                }
+                $this->payments->sync($connection, $created, $transactions);
                 $this->mappings->link($locked, 'order', (int) $created->id);
 
                 return $created;
@@ -173,7 +181,7 @@ final class OrderImporter
         if ($created === null) {
             $this->log($connection, $run, 'info', "Order {$label} was already imported.", $id, $mapping->internal_id, 'duplicate');
 
-            return 'unchanged';
+            return $this->update($connection, $mapping->refresh(), $order, $updatedAt, $label, $run);
         }
 
         foreach ($skippedLines as $line) {
@@ -203,39 +211,35 @@ final class OrderImporter
             return 'skipped';
         }
 
-        if ($core->metadata['shopify']['historical'] ?? false) {
-            // History stays history even after the connection cutoff changes.
-            return DB::transaction(function () use ($core, $order, $mapping, $updatedAt) {
-                $lockedMapping = Mapping::whereKey($mapping->id)->lockForUpdate()->firstOrFail();
-                if ($this->mappings->isStale($lockedMapping, $updatedAt)) {
-                    return 'stale';
-                }
-                $locked = Core::orders((int) $core->organization_id)->whereKey($core->id)->lockForUpdate()->firstOrFail();
-                $metadata = $locked->metadata ?? [];
-                $metadata['shopify']['financial_status'] = $order['financial_status'] ?? null;
-                $metadata['shopify']['fulfillment_status'] = $order['fulfillment_status'] ?? null;
-                $locked->forceFill(['status' => $this->historicalStatus($order), 'metadata' => $metadata])->save();
-                $this->mappings->touch($lockedMapping, $updatedAt);
+        $transactions = $this->payments->read($connection, (string) $order['id']);
 
-                return 'unchanged';
-            });
-        }
-
-        $outcome = 'unchanged';
-
-        if (($order['cancelled_at'] ?? null) !== null && $core->status !== OrderStatus::CANCELLED) {
-            try {
-                Core::cancelOrder($this->orders, $core, Core::actor($connection));
-                $outcome = 'cancelled';
-                $this->log($connection, $run, 'info', "Cancelled order {$core->order_number} (Shopify {$label}) and restocked it.", (string) $order['id'], (int) $core->id, 'cancel_order');
-            } catch (InvalidStateException $error) {
-                $this->log($connection, $run, 'warning', "Shopify cancelled {$label}, but Inventoros order {$core->order_number} cannot be cancelled: {$error->getMessage()}", (string) $order['id'], (int) $core->id, 'cancel_order');
+        return DB::transaction(function () use ($connection, $mapping, $order, $updatedAt, $label, $run, $transactions) {
+            $lockedMapping = Mapping::whereKey($mapping->id)->lockForUpdate()->firstOrFail();
+            if ($this->mappings->isStale($lockedMapping, $updatedAt)) {
+                return 'stale';
             }
-        }
+            $core = Core::orders((int) $connection->organization_id)->whereKey($lockedMapping->internal_id)->lockForUpdate()->firstOrFail();
+            $this->payments->sync($connection, $core, $transactions);
+            $outcome = 'unchanged';
+            if ($core->metadata['shopify']['historical'] ?? false) {
+                $core->forceFill(['status' => $this->historicalStatus($order)])->save();
+            } elseif (($order['cancelled_at'] ?? null) !== null && $core->status !== OrderStatus::CANCELLED) {
+                try {
+                    Core::cancelOrder($this->orders, $core, Core::actor($connection));
+                    $outcome = 'cancelled';
+                    $this->log($connection, $run, 'info', "Cancelled order {$core->order_number} (Shopify {$label}) and restocked it.", (string) $order['id'], (int) $core->id, 'cancel_order');
+                } catch (InvalidStateException $error) {
+                    $this->log($connection, $run, 'warning', "Shopify cancelled {$label}, but Inventoros order {$core->order_number} cannot be cancelled: {$error->getMessage()}", (string) $order['id'], (int) $core->id, 'cancel_order');
+                }
+            }
+            $metadata = $core->metadata ?? [];
+            $metadata['shopify']['financial_status'] = $order['financial_status'] ?? null;
+            $metadata['shopify']['fulfillment_status'] = $order['fulfillment_status'] ?? null;
+            $core->forceFill(['metadata' => $metadata])->save();
+            $this->mappings->touch($lockedMapping, $updatedAt);
 
-        $this->mappings->touch($mapping, $updatedAt);
-
-        return $outcome;
+            return $outcome;
+        });
     }
 
     /**

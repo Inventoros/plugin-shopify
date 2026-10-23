@@ -94,11 +94,11 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
 - Routes follow the plugin route namespace: names `plg.shopify.*`, pages and actions under `/p/shopify/` (the overview moved from `/shopify` to `/p/shopify` in 1.0.1; update bookmarks). The webhook address, `/webhooks/plugins/shopify/{connection}`, is unchanged, so subscriptions registered by 1.0.0 keep delivering and nothing needs re-registering.
 - The sidebar item is translated on cores that translate plugin menu items (`label_key`).
 - Known limitations and SDK gaps:
-  - Core has no stock reservations (SDK gap G4): an order placed in Shopify takes stock when it is imported, not when it is placed.
+  - Orders take stock when imported. External Shopify checkout reservations are not created in Inventoros before the order webhook arrives.
   - On cores with variant location stock, each variant syncs its own bins per mapped warehouse. Older cores retain primary-location variant sync. Local and global stock holds reduce pushed availability; warehouse quantities share a single SKU availability budget, allocated primary location first.
   - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
-  - Fulfillments and tracking are not pushed to Shopify yet; refunds and order edits after import are not applied.
-  - No public OAuth app yet (custom app tokens only); see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
+  - Fulfillments and tracking are not pushed to Shopify yet; order edits after import are not applied. Completed payment/refund records can be imported with the optional ledger setting.
+  - Public multi-merchant OAuth installation is not implemented; see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
 
 ## Develop and test
 
@@ -182,3 +182,32 @@ Variant mappings are still required. Orders skipped by the start-date filter in
 this version can be revisited as history after changing the range. Manually ignored
 records and ignored records with no recorded reason stay ignored. Existing live
 orders are never converted into history by changing a setting.
+
+### Payment and refund records
+
+Enable **Record Shopify payments and refunds** after reconciling any manual
+payment entries. This optional setting is off by default and requires core's
+`OrderPaymentService::recordImported()` API (core PR Inventoros/Inventoros#305).
+Older cores retain all existing sync features and show an upgrade hint instead
+of enabling payment import. Enabling the setting retests the connection and
+registers the refund webhook; scheduled order reconciliation also updates it.
+
+Only successful sales, captures and refunds create ledger records. Pending or
+failed transactions and uncaptured authorizations create no receipts. Amounts
+and dates come from Shopify transactions in shop currency; a currency mismatch
+is refused. There are no calls to capture, charge or refund money in Shopify.
+Payment status and balances are derived by core from the imported ledger, never
+from a Shopify status label. Actual overpayments remain visible as overpayments.
+
+Provider transaction IDs map to core payment IDs, so repeated webhooks/resyncs
+add nothing twice. Conflicting transaction changes and missing mapped payments
+need review. Manual voids remain voided. Active manual/unrelated payment rows
+block automatic import until reconciled or voided to prevent double counting.
+Refunds cannot exceed recorded receipts. Historical imports use the same ledger
+path silently, including cancelled orders; live imports announce core payment
+hooks only after commit. Importing financial records does not restock returns.
+
+The API reader checks the exact transaction count and refuses incomplete lists
+or orders with more than 100 transactions for manual review. It does not
+silently import a subset. Financial records and new-order creation are atomic;
+an invalid transaction leaves no partial order/payment ledger.

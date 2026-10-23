@@ -31,6 +31,7 @@ use Inventoros\Plugins\Shopify\Sync\Catalog;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
+use Inventoros\Plugins\Shopify\Sync\Payments;
 use Inventoros\Plugins\Shopify\Sync\SkuMatcher;
 
 /**
@@ -91,6 +92,10 @@ final class ActionsController extends Controller
         }
         if ($data['auth_mode'] === 'token') {
             unset($credentials['client_id'], $credentials['token_expires_at']);
+        }
+
+        if (($data['import_payments'] ?? false) && ! $record->setting('import_payments', false)) {
+            $retest = true; // Register the refund topic when payment imports are enabled.
         }
 
         $record->forceFill([
@@ -396,10 +401,15 @@ final class ActionsController extends Controller
             'stock_source' => ['required', Rule::in(SyncPolicy::STOCK_SOURCES)],
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
             'import_orders' => ['required', 'boolean'],
+            'import_payments' => ['nullable', 'boolean'],
             'import_test_orders' => ['nullable', 'boolean'],
             'orders_since' => ['required_with:history_before', 'nullable', 'date'],
             'history_before' => ['nullable', 'date', 'after_or_equal:orders_since', 'before_or_equal:today'],
         ]);
+
+        if (($data['import_payments'] ?? false) && ! Payments::supported()) {
+            throw ValidationException::withMessages(['import_payments' => 'Update Inventoros core to enable imported-payment records.']);
+        }
 
         if ($existing === null && ! ShopDomain::valid($data['shop_domain'])) {
             throw ValidationException::withMessages(['shop_domain' => __('shopify::messages.invalid_domain')]);

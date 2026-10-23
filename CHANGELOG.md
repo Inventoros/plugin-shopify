@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.3.0] - Unreleased
+
+### Added
+
+- Opt-in records of completed Shopify payments and refunds, using core imported-payment support. Provider IDs prevent duplicates; currencies, manual-entry conflicts, voids and refund limits are checked.
+- Refund webhooks refresh transaction history; incomplete histories are refused. Historical financial imports stay silent and current order announcements wait for the complete aggregate to commit.
+
 ## [1.2.0] - Unreleased
 
 ### Added

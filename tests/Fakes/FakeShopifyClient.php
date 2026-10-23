@@ -43,6 +43,8 @@ final class FakeShopifyClient implements ShopifyClient
     /** @var array<int, string> */
     public array $subscriptions = [];
 
+    public array $transactions = [];
+
     public function __construct()
     {
         $shop = self::fixture('shop')['data']['shop'];
@@ -168,6 +170,13 @@ final class FakeShopifyClient implements ShopifyClient
         }
 
         return null;
+    }
+
+    public function transactions(string $orderId): array
+    {
+        $this->record(__FUNCTION__, [$orderId]);
+
+        return $this->transactions[$orderId] ?? [];
     }
 
     public function setInventoryQuantities(array $quantities, string $idempotencyKey): void

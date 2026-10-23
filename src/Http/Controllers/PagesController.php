@@ -25,6 +25,7 @@ use Inventoros\Plugins\Shopify\Support\Permissions;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
+use Inventoros\Plugins\Shopify\Sync\Payments;
 
 /**
  * Props of the plugin's three pages. register_page() calls these only for
@@ -56,6 +57,7 @@ final class PagesController
             'canManage' => Permissions::canManage($user),
             'apiVersion' => ShopifyClient::API_VERSION,
             'defaults' => SyncPolicy::DEFAULTS,
+            'supportsPaymentImport' => Payments::supported(),
             'urls' => self::urls(),
         ];
     }

@@ -8,6 +8,7 @@ use Inventoros\Plugins\Shopify\Kit\Models\Connection;
 use Inventoros\Plugins\Shopify\Kit\Models\SyncRun;
 use Inventoros\Plugins\Shopify\Kit\Models\WebhookInboxEntry;
 use Inventoros\Plugins\Shopify\Kit\Sync\SyncRecorder;
+use Inventoros\Plugins\Shopify\Shopify\ClientFactory;
 use Inventoros\Plugins\Shopify\Shopify\Normalizer;
 use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 
@@ -25,6 +26,7 @@ final class WebhookProcessor
         'products/update' => 'PRODUCTS_UPDATE',
         'inventory_levels/update' => 'INVENTORY_LEVELS_UPDATE',
         'app/uninstalled' => 'APP_UNINSTALLED',
+        'refunds/create' => 'REFUNDS_CREATE',
     ];
 
     public const UNINSTALLED = 'app/uninstalled';
@@ -49,6 +51,19 @@ final class WebhookProcessor
             case 'orders/updated':
             case 'orders/cancelled':
                 $outcome = $this->orders->import($connection, Normalizer::order($data), $run);
+                $this->count($run, $outcome);
+
+                return in_array($outcome, ['stale', 'skipped'], true) ? "order {$outcome}" : null;
+
+            case 'refunds/create':
+                if (! $policy->importsPayments() || ! $policy->importsOrders() || empty($data['order_id'])) {
+                    return 'Payment imports are disabled or the refund has no order';
+                }
+                $order = app(ClientFactory::class)->make($connection)->order((string) $data['order_id']);
+                if ($order === null) {
+                    return 'The refunded order is not available';
+                }
+                $outcome = $this->orders->import($connection, $order, $run);
                 $this->count($run, $outcome);
 
                 return in_array($outcome, ['stale', 'skipped'], true) ? "order {$outcome}" : null;
