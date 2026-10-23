@@ -77,7 +77,7 @@ final class ClientCredentialsTest extends TestCase
         $this->travel(24)->hours();
         $client->shop();
         $headers = Http::recorded(fn ($request) => str_ends_with($request->url(), 'graphql.json'))
-            ->map(fn ($pair) => $pair[0]->header('X-Shopify-Access-Token')[0])->all();
+            ->map(fn ($pair) => $pair[0]->header('X-Shopify-Access-Token')[0])->values()->all();
         $this->assertSame(['token-before-expiry', 'token-after-expiry'], $headers);
     }
 
