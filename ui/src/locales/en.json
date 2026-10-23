@@ -16,6 +16,8 @@
         "apiVersion": "Admin API {version}"
     },
     "form": {
+        "historyBefore": "Import orders before this date as history (optional)",
+        "historyHint": "History does not change current stock or announce new orders. Set the import start date far enough back and run a full sync. Older than 60 days requires approved read_all_orders access.",
         "authMode": "Authentication",
         "authToken": "Saved Admin API token",
         "authClient": "App client credentials (automatic renewal)",

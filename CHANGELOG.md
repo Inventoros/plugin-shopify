@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.2.0] - Unreleased
+
+### Added
+
+- Optional historical order cutoff: backfill older sales without stock, reservations, approvals or new-order announcements. Historical updates and cancellations never restock goods.
+- Identify the read_all_orders scope for older import start dates, and revisit start-date-filtered records safely as history.
+
 ## [1.1.0] - Unreleased
 
 ### Added

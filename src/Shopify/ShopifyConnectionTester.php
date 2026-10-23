@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Shopify;
 
+use Carbon\Carbon;
 use Inventoros\Plugins\Shopify\Kit\Connections\ConnectionTester;
 use Inventoros\Plugins\Shopify\Kit\Connections\TestResult;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\IntegrationException;
@@ -36,6 +37,9 @@ final class ShopifyConnectionTester implements ConnectionTester
         }
         if ($policy->importsOrders()) {
             $required[] = 'read_orders';
+            if ($policy->ordersSince() !== null && Carbon::parse($policy->ordersSince())->lt(now()->subDays(60))) {
+                $required[] = 'read_all_orders';
+            }
         }
         $granted = $shop['scopes'] ?? [];
         $missing = array_values(array_filter($required, fn ($scope) => ! in_array($scope, $granted, true)

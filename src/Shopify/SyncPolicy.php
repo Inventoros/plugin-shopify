@@ -35,6 +35,7 @@ final class SyncPolicy
         'import_orders' => true,
         'import_test_orders' => false,
         'orders_since' => null,
+        'history_before' => null,
         'push_delay_seconds' => 10,
     ];
 
@@ -75,6 +76,10 @@ final class SyncPolicy
             $settings['orders_since'] = $input['orders_since'] ?: null;
         }
 
+        if (array_key_exists('history_before', $input)) {
+            $settings['history_before'] = $input['history_before'] ?: null;
+        }
+
         return $settings;
     }
 
@@ -111,6 +116,11 @@ final class SyncPolicy
     public function ordersSince(): ?string
     {
         return $this->settings['orders_since'];
+    }
+
+    public function historyBefore(): ?string
+    {
+        return $this->settings['history_before'];
     }
 
     public function pushDelay(): int
