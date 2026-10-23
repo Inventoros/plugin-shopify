@@ -35,6 +35,9 @@ interface ShopifyClient
      */
     public function shop(): array;
 
+    /** Successful and non-successful transactions, in shop currency; complete or refused. */
+    public function transactions(string $orderId): array;
+
     /**
      * @return Page<array{id: string, name: string, active: bool}>
      */

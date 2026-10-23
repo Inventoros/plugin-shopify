@@ -156,6 +156,18 @@ final class Queries
         }
         GQL;
 
+    public const ORDER_TRANSACTIONS = <<<'GQL'
+        query OrderTransactions($id: ID!) {
+          order(id: $id) {
+            transactionsCount { count precision }
+            transactions(first: 100) {
+              id kind status gateway processedAt createdAt parentTransaction { id }
+              amountSet { shopMoney { amount currencyCode } }
+            }
+          }
+        }
+        GQL;
+
     public const SET_QUANTITIES = <<<'GQL'
         mutation SetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
           inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {

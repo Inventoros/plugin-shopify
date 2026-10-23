@@ -152,6 +152,26 @@ final class HttpShopifyClient implements ShopifyClient
         return is_array($data['order'] ?? null) ? Normalizer::order($this->complete($data['order'], 'lineItems', Queries::ORDER_LINES, 'order', 800)) : null;
     }
 
+    public function transactions(string $orderId): array
+    {
+        $data = $this->read(Queries::ORDER_TRANSACTIONS, ['id' => Gid::make('Order', $orderId)], 500);
+        $order = $data['order'] ?? [];
+        $rows = $order['transactions'] ?? null;
+        if (! is_array($rows) || ($order['transactionsCount']['precision'] ?? '') !== 'EXACT'
+            || ($order['transactionsCount']['count'] ?? -1) !== count($rows)) {
+            throw new PermanentError('Shopify did not return the complete transaction history (maximum 100 transactions per order). Review this order manually rather than importing partial payments.');
+        }
+
+        return array_map(fn ($row) => [
+            'id' => (string) Gid::id($row['id'] ?? null), 'kind' => strtolower((string) ($row['kind'] ?? '')),
+            'status' => strtolower((string) ($row['status'] ?? '')), 'gateway' => $row['gateway'] ?? '',
+            'amount' => (string) ($row['amountSet']['shopMoney']['amount'] ?? ''),
+            'currency' => $row['amountSet']['shopMoney']['currencyCode'] ?? '',
+            'processed_at' => $row['processedAt'] ?? $row['createdAt'] ?? null,
+            'parent_id' => Gid::id($row['parentTransaction']['id'] ?? null),
+        ], $rows);
+    }
+
     public function setInventoryQuantities(array $quantities, string $idempotencyKey): void
     {
         if ($quantities === []) {

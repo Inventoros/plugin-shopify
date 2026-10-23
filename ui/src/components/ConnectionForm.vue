@@ -8,6 +8,7 @@ const { PrimaryButton, SecondaryButton } = window.Inventoros.ui;
 
 const props = defineProps({
     action: { type: String, required: true },
+    supportsPayments: { type: Boolean, default: false },
     connection: { type: Object, default: null },
     defaults: { type: Object, default: () => ({}) },
 });
@@ -29,6 +30,7 @@ const form = useForm({
     stock_source: settings.stock_source ?? 'inventoros',
     product_source: settings.product_source ?? 'shopify',
     import_orders: settings.import_orders ?? true,
+    import_payments: settings.import_payments ?? false,
     import_test_orders: settings.import_test_orders ?? false,
     orders_since: settings.orders_since ?? today,
     history_before: settings.history_before ?? '',
@@ -124,6 +126,12 @@ const submit = () => {
                 <input v-model="form.import_test_orders" type="checkbox" :disabled="!form.import_orders" />
                 {{ t('form.importTestOrders') }}
             </label>
+            <label v-if="supportsPayments || form.import_payments" class="shopify-check">
+                <input v-model="form.import_payments" type="checkbox" :disabled="!form.import_orders" />
+                {{ t('form.importPayments') }}
+            </label>
+            <p class="shopify-faint">{{ supportsPayments ? t('form.paymentsHint') : t('form.paymentsUpgrade') }}</p>
+            <p v-if="form.errors.import_payments" class="shopify-error">{{ form.errors.import_payments }}</p>
         </div>
 
         <div class="shopify-field">

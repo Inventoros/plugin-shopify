@@ -33,6 +33,7 @@ final class SyncPolicy
         'stock_source' => 'inventoros',
         'product_source' => 'shopify',
         'import_orders' => true,
+        'import_payments' => false,
         'import_test_orders' => false,
         'orders_since' => null,
         'history_before' => null,
@@ -66,7 +67,7 @@ final class SyncPolicy
             $settings['product_source'] = $input['product_source'];
         }
 
-        foreach (['import_orders', 'import_test_orders'] as $flag) {
+        foreach (['import_orders', 'import_test_orders', 'import_payments'] as $flag) {
             if (array_key_exists($flag, $input)) {
                 $settings[$flag] = (bool) $input[$flag];
             }
@@ -106,6 +107,11 @@ final class SyncPolicy
     public function importsOrders(): bool
     {
         return (bool) $this->settings['import_orders'];
+    }
+
+    public function importsPayments(): bool
+    {
+        return (bool) $this->settings['import_payments'];
     }
 
     public function importsTestOrders(): bool
