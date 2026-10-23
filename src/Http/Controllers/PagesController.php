@@ -18,8 +18,8 @@ use Inventoros\Plugins\Shopify\Kit\Models\Mapping;
 use Inventoros\Plugins\Shopify\Kit\Models\SyncLog;
 use Inventoros\Plugins\Shopify\Kit\Models\SyncRun;
 use Inventoros\Plugins\Shopify\Shopify\ShopifyClient;
-use Inventoros\Plugins\Shopify\ShopifyPlugin;
 use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
+use Inventoros\Plugins\Shopify\ShopifyPlugin;
 use Inventoros\Plugins\Shopify\Support\Core;
 use Inventoros\Plugins\Shopify\Support\Permissions;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
@@ -202,6 +202,7 @@ final class PagesController
             'currency' => ($connection->remote ?? [])['currency'] ?? null,
             'webhooks_registered_at' => ($connection->remote ?? [])['webhooks_registered_at'] ?? null,
             'has_access_token' => $connection->hasCredential('access_token'),
+            'has_client_id' => $connection->hasCredential('client_id'),
             'has_webhook_secret' => $connection->hasCredential('webhook_secret'),
             'last_tested_at' => $connection->last_tested_at?->toIso8601String(),
             'webhook_url' => RegisterWebhooks::callbackUrl($connection),

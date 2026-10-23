@@ -60,7 +60,7 @@ The plugin needs the Inventoros **queue worker** and **scheduler** running (`sho
 
 ## Set up a store
 
-In short: create a custom app in the Shopify admin with the scopes `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_locations` and `read_orders`, install it, then paste its Admin API access token and API secret key under **Shopify > Connect a store**. Map locations to warehouses, run a full sync and confirm the SKU suggestions.
+Install a Shopify app with the scopes `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_locations` and `read_orders`, then connect under **Shopify > Connect a store** using client credentials for an app and store in your own Shopify organization, or an existing Admin API access token and API secret key. Map locations to warehouses, run a full sync and confirm the SKU suggestions.
 
 The step-by-step guide, with what each status means: **[docs/setup.md](docs/setup.md)**. How orders, stock, products, webhooks and retries behave: **[docs/sync.md](docs/sync.md)**.
 
@@ -143,3 +143,21 @@ queue retry policy. Mutations keep their existing idempotency and queue retries.
 
 Query shapes are bounded below Shopify's default 1,000-point single-query limit.
 Shopify can assign field costs, so response throttle metadata remains authoritative.
+
+### Client credentials and missing scopes
+
+Choose **App client credentials** for apps and stores in the same Shopify
+organization. Enter the app client ID and API secret key (its client secret).
+The server exchanges these for an expiring token, keeps it encrypted alongside
+its expiry, and renews it two minutes before expiration when a client is built.
+A connection-row lock prevents concurrent workers from minting duplicate tokens.
+Manual tokens remain supported; they are never replaced automatically.
+
+Connection tests name missing scopes for the enabled sync directions. Updating
+app permissions may require reinstalling/reauthorizing the app before testing
+again. Secrets and client IDs are write-only and excluded from validation-session
+old input. Failed token exchanges report sanitized errors without provider bodies.
+No OAuth redirect/authorization-code flow is provided by this option.
+
+See [Shopify client credentials](https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant)
+and [token lifetimes](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens).

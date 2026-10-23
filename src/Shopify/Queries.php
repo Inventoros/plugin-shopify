@@ -15,6 +15,7 @@ final class Queries
     public const SHOP = <<<'GQL'
         query Shop {
           shop { id name myshopifyDomain currencyCode plan { displayName } }
+          currentAppInstallation { accessScopes { handle } }
         }
         GQL;
 

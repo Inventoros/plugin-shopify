@@ -52,6 +52,7 @@ final class HttpShopifyClient implements ShopifyClient
             'domain' => (string) ($shop['myshopifyDomain'] ?? $this->shopDomain),
             'currency' => (string) ($shop['currencyCode'] ?? ''),
             'plan' => $shop['plan']['displayName'] ?? null,
+            'scopes' => array_column($data['currentAppInstallation']['accessScopes'] ?? [], 'handle'),
         ];
     }
 

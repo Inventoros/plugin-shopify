@@ -26,6 +26,24 @@ final class ShopifyConnectionTester implements ConnectionTester
             return TestResult::failed($error->getMessage());
         }
 
+        $policy = SyncPolicy::for($connection);
+        $required = ['read_products', 'read_inventory', 'read_locations'];
+        if ($policy->pushesStock()) {
+            $required[] = 'write_inventory';
+        }
+        if ($policy->pushesProducts()) {
+            $required[] = 'write_products';
+        }
+        if ($policy->importsOrders()) {
+            $required[] = 'read_orders';
+        }
+        $granted = $shop['scopes'] ?? [];
+        $missing = array_values(array_filter($required, fn ($scope) => ! in_array($scope, $granted, true)
+            && ! (str_starts_with($scope, 'read_') && in_array('write_'.substr($scope, 5), $granted, true))));
+        if ($missing !== []) {
+            return TestResult::failed('Missing Shopify access scopes: '.implode(', ', $missing).'. Update the app permissions and reinstall or reauthorize it, then test again.');
+        }
+
         if (! $connection->hasCredential('webhook_secret')) {
             return TestResult::failed('The access token works, but the API secret key is missing: webhooks cannot be verified without it.');
         }

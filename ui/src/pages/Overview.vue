@@ -120,7 +120,7 @@ const disconnect = (connection) => {
                         </div>
                         <div class="shopify-field">
                             <span class="shopify-label">{{ t('connection.credentials') }}</span>
-                            <span>{{ connection.has_access_token && connection.has_webhook_secret ? t('connection.credentialsSet') : t('connection.credentialsMissing') }}</span>
+                            <span>{{ (connection.settings.auth_mode === 'client_credentials' ? connection.has_client_id : connection.has_access_token) && connection.has_webhook_secret ? t('connection.credentialsSet') : t('connection.credentialsMissing') }}</span>
                         </div>
                     </div>
 

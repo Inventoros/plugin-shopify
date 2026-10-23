@@ -6,6 +6,7 @@ namespace Inventoros\Plugins\Shopify;
 
 use Illuminate\Console\Application as Artisan;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\Route;
 use Inventoros\Plugins\Shopify\Console\PruneCommand;
 use Inventoros\Plugins\Shopify\Console\SyncCommand;
@@ -56,6 +57,7 @@ final class ShopifyPlugin
 
     public function register(): void
     {
+        app(ExceptionHandler::class)->dontFlash(['access_token', 'webhook_secret', 'client_id']);
         $this->registerServices();
         $this->registerTranslations();
         $this->registerPermissions();
