@@ -7,6 +7,7 @@ namespace Inventoros\Plugins\Shopify\Shopify;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\PermanentError;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\RateLimited;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\TransientError;
@@ -21,7 +22,8 @@ use Inventoros\Plugins\Shopify\Kit\Support\RetryAfter;
  * local mirror of that bucket (CostBudget); after it, the bucket is
  * corrected from extensions.cost.throttleStatus. An empty bucket, a
  * THROTTLED error or an HTTP 429 raises RateLimited with the wait, and the
- * job re-queues itself instead of sleeping.
+ * read operations wait briefly on the same page, then jobs re-queue.
+ * Mutations always use the existing job retry policy without sleeping.
  *
  * Errors: 401/403 PermanentError(authentication), 404 and GraphQL or user
  * errors PermanentError, 5xx and network failures TransientError. The
@@ -41,7 +43,7 @@ final class HttpShopifyClient implements ShopifyClient
 
     public function shop(): array
     {
-        $data = $this->query(Queries::SHOP, [], 2);
+        $data = $this->read(Queries::SHOP, [], 2);
         $shop = $data['shop'] ?? [];
 
         return [
@@ -55,7 +57,7 @@ final class HttpShopifyClient implements ShopifyClient
 
     public function locations(?string $after = null): Page
     {
-        $data = $this->query(Queries::LOCATIONS, ['first' => self::PAGE_SIZE, 'after' => $after], 10);
+        $data = $this->read(Queries::LOCATIONS, ['first' => self::PAGE_SIZE, 'after' => $after], 10);
         $connection = $data['locations'] ?? [];
 
         return new Page(
@@ -71,15 +73,15 @@ final class HttpShopifyClient implements ShopifyClient
 
     public function products(?string $after = null, ?string $updatedSince = null): Page
     {
-        $data = $this->query(Queries::PRODUCTS, [
-            'first' => self::PAGE_SIZE,
+        $data = $this->read(Queries::PRODUCTS, [
+            'first' => 3,
             'after' => $after,
             'query' => $updatedSince === null ? null : "updated_at:>='{$updatedSince}'",
-        ], 260);
+        ], 600);
         $connection = $data['products'] ?? [];
 
         return new Page(
-            array_map([Normalizer::class, 'product'], $connection['nodes'] ?? []),
+            array_map(fn ($node) => Normalizer::product($this->complete($node, 'variants', Queries::PRODUCT_VARIANTS, 'product', 400)), $connection['nodes'] ?? []),
             $connection['pageInfo']['endCursor'] ?? null,
             (bool) ($connection['pageInfo']['hasNextPage'] ?? false),
         );
@@ -89,16 +91,17 @@ final class HttpShopifyClient implements ShopifyClient
     {
         $levels = [];
 
-        foreach (array_chunk(array_values(array_unique($inventoryItemIds)), 50) as $chunk) {
-            $data = $this->query(Queries::INVENTORY_LEVELS, [
+        foreach (array_chunk(array_values(array_unique($inventoryItemIds)), 5) as $chunk) {
+            $data = $this->read(Queries::INVENTORY_LEVELS, [
                 'ids' => array_map(fn ($id) => Gid::make('InventoryItem', $id), $chunk),
-            ], 120);
+            ], 450);
 
             foreach ($data['nodes'] ?? [] as $item) {
                 if (! is_array($item) || ! isset($item['id'])) {
                     continue;
                 }
 
+                $item = $this->complete($item, 'inventoryLevels', Queries::INVENTORY_ITEM_LEVELS, 'inventoryItem', 400);
                 foreach ($item['inventoryLevels']['nodes'] ?? [] as $level) {
                     $available = 0;
                     foreach ($level['quantities'] ?? [] as $quantity) {
@@ -127,15 +130,15 @@ final class HttpShopifyClient implements ShopifyClient
             $createdSince === null ? null : "created_at:>='{$createdSince}'",
         ]);
 
-        $data = $this->query(Queries::ORDERS, [
-            'first' => 25,
+        $data = $this->read(Queries::ORDERS, [
+            'first' => 2,
             'after' => $after,
             'query' => $filters === [] ? null : implode(' AND ', $filters),
-        ], 300);
+        ], 800);
         $connection = $data['orders'] ?? [];
 
         return new Page(
-            array_map([Normalizer::class, 'order'], $connection['nodes'] ?? []),
+            array_map(fn ($node) => Normalizer::order($this->complete($node, 'lineItems', Queries::ORDER_LINES, 'order', 800)), $connection['nodes'] ?? []),
             $connection['pageInfo']['endCursor'] ?? null,
             (bool) ($connection['pageInfo']['hasNextPage'] ?? false),
         );
@@ -143,9 +146,9 @@ final class HttpShopifyClient implements ShopifyClient
 
     public function order(string $id): ?array
     {
-        $data = $this->query(Queries::ORDER, ['id' => Gid::make('Order', $id)], 30);
+        $data = $this->read(Queries::ORDER, ['id' => Gid::make('Order', $id)], 400);
 
-        return is_array($data['order'] ?? null) ? Normalizer::order($data['order']) : null;
+        return is_array($data['order'] ?? null) ? Normalizer::order($this->complete($data['order'], 'lineItems', Queries::ORDER_LINES, 'order', 800)) : null;
     }
 
     public function setInventoryQuantities(array $quantities, string $idempotencyKey): void
@@ -248,6 +251,47 @@ final class HttpShopifyClient implements ShopifyClient
         }
 
         return is_array($body['data'] ?? null) ? $body['data'] : [];
+    }
+
+    /** Finish a nested connection before returning a record to an importer. */
+    private function complete(array $node, string $field, string $query, string $root, int $cost): array
+    {
+        $connection = $node[$field] ?? [];
+        $seen = [];
+        while ($connection['pageInfo']['hasNextPage'] ?? false) {
+            $cursor = $connection['pageInfo']['endCursor'] ?? null;
+            if (! is_string($cursor) || $cursor === '' || isset($seen[$cursor])) {
+                throw new PermanentError('Shopify returned a missing or repeated pagination cursor; refusing a partial record.');
+            }
+            $seen[$cursor] = true;
+            $data = $this->read($query, ['id' => $node['id'], 'after' => $cursor], $cost);
+            if (! is_array($data[$root][$field] ?? null)) {
+                throw new TransientError('Shopify omitted a nested page; refusing a partial record. Retry the sync.');
+            }
+            $connection = $data[$root][$field];
+            $node[$field]['nodes'] = array_merge($node[$field]['nodes'] ?? [], $connection['nodes'] ?? []);
+        }
+        $node[$field]['pageInfo'] = $connection['pageInfo'] ?? ['hasNextPage' => false, 'endCursor' => null];
+
+        return $node;
+    }
+
+    /** Short read-only waits preserve progress within a multi-page record. */
+    private function read(string $query, array $variables, int $cost): array
+    {
+        $waited = 0;
+        for ($attempt = 0; ; $attempt++) {
+            try {
+                return $this->query($query, $variables, $cost);
+            } catch (RateLimited $error) {
+                $delay = max(1, $error->retryAfter);
+                if ($attempt >= 3 || $waited + $delay > 30) {
+                    throw $error; // The job's existing throttle retry takes over.
+                }
+                Sleep::for($delay)->seconds();
+                $waited += $delay;
+            }
+        }
     }
 
     private function endpoint(): string
