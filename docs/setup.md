@@ -1,6 +1,6 @@
 # Setting up the Shopify connection
 
-This guide connects one Shopify store to one Inventoros organization with a **custom app** and its Admin API access token. You need to be a Shopify store owner or a staff member allowed to develop apps, and an Inventoros user with **Manage Shopify sync** (or **Edit Settings** on cores without plugin permissions).
+This guide connects one Shopify store to one Inventoros organization with an installed Shopify app, using client credentials for an app and store in the same Shopify organization or an existing Admin API token. You need to be a Shopify store owner or a staff member allowed to develop apps, and an Inventoros user with **Manage Shopify sync** (or **Edit Settings** on cores without plugin permissions).
 
 ## Contents
 
@@ -14,24 +14,23 @@ This guide connects one Shopify store to one Inventoros organization with a **cu
 
 ## 1. Create the custom app in Shopify
 
-1. In the Shopify admin, open **Settings > Apps and sales channels > Develop apps**. If app development is not enabled yet, choose **Allow custom app development** (store owners only).
-2. Choose **Create an app**, name it (for example *Inventoros*) and pick yourself as the developer.
-3. Open **Configuration > Admin API integration > Configure** and select these scopes:
+1. Create an app in the Shopify Dev Dashboard and install it on the store. Client-credentials authentication requires the app and store to belong to the same Shopify organization.
+2. Configure the scopes used by your sync directions:
 
    | Scope | Why |
    |-------|-----|
-   | `read_products` | Read products and variants to map them by SKU |
-   | `write_products` | Push titles and prices, only when Inventoros owns products |
+   | `read_products` | Read products and variants for mapping |
+   | `write_products` | Push titles/prices when Inventoros owns products |
    | `read_inventory` | Read inventory levels |
-   | `write_inventory` | Push stock levels, when Inventoros owns stock |
-   | `read_locations` | Read your locations to map them to warehouses |
-   | `read_orders` | Import orders (Shopify serves the last 60 days; add `read_all_orders` if you import older ones) |
+   | `write_inventory` | Push stock when Inventoros owns stock |
+   | `read_locations` | Map locations to warehouses |
+   | `read_orders` | Import orders and their transactions |
+   | `read_all_orders` | Approved access to orders older than 60 days |
 
-4. Save, open **API credentials** and choose **Install app**.
-5. Reveal and copy the **Admin API access token** (it starts with `shpat_` and is shown once).
-6. On the same page, copy the **API secret key**. Shopify signs every webhook with it; Inventoros refuses any webhook it cannot verify.
+3. Copy the app **Client ID** and **Client secret** from its settings. In Inventoros, the API secret key field holds that client secret and verifies incoming webhooks. Tokens are acquired and renewed automatically in client-credentials mode; the Dev Dashboard does not show a permanent token for this grant.
+4. Existing manually obtained Admin API tokens remain supported with the app's API secret key. Select the saved-token authentication mode for these. A public multi-merchant OAuth installation flow is not provided here.
 
-If your store no longer offers custom app development in the admin, create the app in the Shopify Dev Dashboard instead, give it the same scopes, install it on the store, and use its Admin API access token and client secret in the same two fields.
+See [Shopify's client-credentials setup](https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant).
 
 ## 2. Connect it in Inventoros
 
@@ -41,14 +40,18 @@ Open **Shopify** in the sidebar (`/p/shopify`) and fill in **Connect a store**:
 |-------|-------|
 | Name | Anything that tells your stores apart |
 | Shop domain | `your-store.myshopify.com` (the handle alone, `your-store`, also works). Custom storefront domains are not Admin API hosts and are refused. |
-| Admin API access token | The `shpat_...` token |
-| API secret key | The secret from step 1.6 |
+| Authentication | App client credentials for stores in your own Shopify organization, or a saved Admin API token |
+| App client ID | The app client ID in client-credentials mode |
+| Admin API access token | Your existing token in saved-token mode |
+| API secret key | The app client secret used to verify webhooks |
 | Who owns stock levels | **Inventoros** pushes Inventoros quantities to Shopify; **Shopify** applies Shopify's quantities to Inventoros. Pick one owner. |
 | Who owns product names and prices | **Shopify** copies Shopify edits into Inventoros; **Inventoros** pushes Inventoros edits to Shopify. |
 | Import Shopify orders | On by default |
 | Import orders placed on or after | Today by default, so old orders are not imported by accident |
+| Import orders before this date as history | Optional cutoff (UTC); earlier orders do not change stock or announce new orders |
+| Record Shopify payments and refunds | Optional, off by default; requires imported-payment support in core and reconciliation of manual entries |
 
-**Save and test** stores the token and secret encrypted and queues a connection test. The page never waits on Shopify: refresh after a few seconds. When the test passes the store shows **Healthy**, the plugin registers its webhooks and reads your locations. If it fails, the card shows why (a wrong token, missing scopes, a token for another store).
+**Save and test** stores credentials encrypted and queues a connection test. The page never waits on Shopify: refresh after a few seconds. When the test passes the store shows **Healthy**, the plugin registers its webhooks and reads your locations. If it fails, the card shows why (a wrong token, missing scopes, a token for another store).
 
 The background work needs the Inventoros queue worker and scheduler running (on cPanel the scheduler also drains the queue; see the core's CPANEL.md).
 
@@ -91,7 +94,7 @@ Place a test order in Shopify (enable **Also import test orders** first, or use 
 
 ## 7. Future: a public app with OAuth
 
-Version 1 connects with a custom app's access token, one store at a time. A public Shopify app installed through OAuth (an install link, offline access tokens, Shopify's mandatory privacy webhooks) is planned; the connection model already keeps credentials as an encrypted set so an OAuth token can replace the custom app token without a data migration.
+The plugin connects one store at a time with app client credentials or an existing Admin API token. A public Shopify app installed through OAuth (an install link, offline access tokens, Shopify's mandatory privacy webhooks) is planned; the connection model already keeps credentials as an encrypted set so an OAuth token can replace the custom app token without a data migration.
 
 ### Optional shipment sync
 

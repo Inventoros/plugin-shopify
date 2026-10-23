@@ -92,6 +92,25 @@ final class FulfilmentPushTest extends TestCase
         $this->assertSame(0, $this->shopify->callsTo('moveFulfilmentOrder'));
     }
 
+    public function test_historical_orders_are_excluded_from_fulfilment_push(): void
+    {
+        $metadata = $this->order->metadata;
+        $metadata['shopify']['historical'] = true;
+        $this->order->update(['metadata' => $metadata]);
+        $shipment = $this->ship(false);
+        $this->assertNull(FulfilmentPush::connectionFor($shipment));
+        Queue::assertNotPushed(PushFulfilments::class);
+        $this->assertSame(0, OutboxEntry::where('kind', FulfilmentPush::KIND)->count());
+    }
+
+    public function test_orders_that_never_committed_stock_are_excluded_from_fulfilment_push(): void
+    {
+        $this->order->forceFill(['stock_committed' => false])->save();
+        $shipment = $this->ship(false);
+        $this->assertNull(FulfilmentPush::connectionFor($shipment));
+        Queue::assertNotPushed(PushFulfilments::class);
+    }
+
     public function test_throttling_waits_then_retries_without_creating_duplicates(): void
     {
         $this->ship();

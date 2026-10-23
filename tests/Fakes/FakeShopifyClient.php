@@ -44,10 +44,12 @@ final class FakeShopifyClient implements ShopifyClient
     /** @var array<int, string> */
     public array $subscriptions = [];
 
+    public array $transactions = [];
+
     public function __construct()
     {
         $shop = self::fixture('shop')['data']['shop'];
-        $this->shop = ['id' => '77001', 'name' => $shop['name'], 'domain' => $shop['myshopifyDomain'], 'currency' => $shop['currencyCode'], 'plan' => $shop['plan']['displayName']];
+        $this->shop = ['id' => '77001', 'name' => $shop['name'], 'domain' => $shop['myshopifyDomain'], 'currency' => $shop['currencyCode'], 'plan' => $shop['plan']['displayName'], 'scopes' => ['read_products', 'write_products', 'read_inventory', 'write_inventory', 'read_locations', 'read_orders', 'read_all_orders', 'read_merchant_managed_fulfillment_orders', 'write_merchant_managed_fulfillment_orders']];
 
         foreach (self::fixture('locations')['data']['locations']['nodes'] as $node) {
             $this->locations[] = ['id' => substr($node['id'], strrpos($node['id'], '/') + 1), 'name' => $node['name'], 'active' => $node['isActive']];
@@ -169,6 +171,13 @@ final class FakeShopifyClient implements ShopifyClient
         }
 
         return null;
+    }
+
+    public function transactions(string $orderId): array
+    {
+        $this->record(__FUNCTION__, [$orderId]);
+
+        return $this->transactions[$orderId] ?? [];
     }
 
     public function setInventoryQuantities(array $quantities, string $idempotencyKey): void

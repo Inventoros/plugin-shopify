@@ -15,6 +15,7 @@ final class Queries
     public const SHOP = <<<'GQL'
         query Shop {
           shop { id name myshopifyDomain currencyCode plan { displayName } }
+          currentAppInstallation { accessScopes { handle } }
         }
         GQL;
 
@@ -32,12 +33,13 @@ final class Queries
           products(first: $first, after: $after, query: $query, sortKey: UPDATED_AT) {
             nodes {
               id title status updatedAt
-              variants(first: 100) {
+              variants(first: 50) {
                 nodes {
                   id sku title price barcode
                   selectedOptions { name value }
                   inventoryItem { id }
                 }
+                pageInfo { hasNextPage endCursor }
               }
             }
             pageInfo { hasNextPage endCursor }
@@ -50,12 +52,13 @@ final class Queries
           nodes(ids: $ids) {
             ... on InventoryItem {
               id
-              inventoryLevels(first: 50) {
+              inventoryLevels(first: 25) {
                 nodes {
                   updatedAt
                   location { id }
                   quantities(names: ["available"]) { name quantity }
                 }
+                pageInfo { hasNextPage endCursor }
               }
             }
           }
@@ -73,7 +76,7 @@ final class Queries
               totalTaxSet { shopMoney { amount } }
               totalShippingPriceSet { shopMoney { amount } }
               totalDiscountsSet { shopMoney { amount } }
-              lineItems(first: 100) {
+              lineItems(first: 50) {
                 nodes {
                   id sku name quantity
                   variant { id }
@@ -81,6 +84,7 @@ final class Queries
                   originalUnitPriceSet { shopMoney { amount } }
                   totalDiscountSet { shopMoney { amount } }
                 }
+                pageInfo { hasNextPage endCursor }
               }
             }
             pageInfo { hasNextPage endCursor }
@@ -98,7 +102,7 @@ final class Queries
               totalTaxSet { shopMoney { amount } }
               totalShippingPriceSet { shopMoney { amount } }
               totalDiscountsSet { shopMoney { amount } }
-              lineItems(first: 100) {
+              lineItems(first: 50) {
                 nodes {
                   id sku name quantity
                   variant { id }
@@ -106,7 +110,60 @@ final class Queries
                   originalUnitPriceSet { shopMoney { amount } }
                   totalDiscountSet { shopMoney { amount } }
                 }
+                pageInfo { hasNextPage endCursor }
               }
+          }
+        }
+        GQL;
+
+    public const PRODUCT_VARIANTS = <<<'GQL'
+        query ProductVariants($id: ID!, $after: String) {
+          product(id: $id) {
+            id
+            variants(first: 100, after: $after) {
+              nodes { id sku title price barcode selectedOptions { name value } inventoryItem { id } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        }
+        GQL;
+
+    public const ORDER_LINES = <<<'GQL'
+        query OrderLines($id: ID!, $after: String) {
+          order(id: $id) {
+            id
+            lineItems(first: 100, after: $after) {
+              nodes {
+                id sku name quantity variant { id } product { id }
+                originalUnitPriceSet { shopMoney { amount } }
+                totalDiscountSet { shopMoney { amount } }
+              }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        }
+        GQL;
+
+    public const INVENTORY_ITEM_LEVELS = <<<'GQL'
+        query InventoryItemLevels($id: ID!, $after: String) {
+          inventoryItem(id: $id) {
+            id
+            inventoryLevels(first: 100, after: $after) {
+              nodes { updatedAt location { id } quantities(names: ["available"]) { name quantity } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        }
+        GQL;
+
+    public const ORDER_TRANSACTIONS = <<<'GQL'
+        query OrderTransactions($id: ID!) {
+          order(id: $id) {
+            transactionsCount { count precision }
+            transactions(first: 100) {
+              id kind status gateway processedAt createdAt parentTransaction { id }
+              amountSet { shopMoney { amount currencyCode } }
+            }
           }
         }
         GQL;

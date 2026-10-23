@@ -32,6 +32,7 @@ use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
 use Inventoros\Plugins\Shopify\Sync\Locations;
 use Inventoros\Plugins\Shopify\Sync\OrderImporter;
+use Inventoros\Plugins\Shopify\Sync\Payments;
 use Inventoros\Plugins\Shopify\Sync\SkuMatcher;
 
 /**
@@ -58,7 +59,7 @@ final class ActionsController extends Controller
             'acting_user_id' => $user->id,
             'name' => $data['name'],
             'shop_domain' => $data['shop_domain'],
-            'credentials' => ['access_token' => $data['access_token'], 'webhook_secret' => $data['webhook_secret']],
+            'credentials' => array_filter(['access_token' => $data['access_token'] ?? null, 'webhook_secret' => $data['webhook_secret'], 'client_id' => $data['client_id'] ?? null]),
             'status' => Connection::PENDING,
             'settings' => SyncPolicy::sanitize($data + ['orders_since' => $data['orders_since'] ?? now()->toDateString()]),
         ]);
@@ -77,11 +78,28 @@ final class ActionsController extends Controller
         $credentials = $record->credentials ?? [];
         $retest = false;
 
-        foreach (['access_token', 'webhook_secret'] as $key) {
+        foreach (['access_token', 'webhook_secret', 'client_id'] as $key) {
             if (($data[$key] ?? '') !== '') {
                 $credentials[$key] = $data[$key];
                 $retest = true;
             }
+        }
+
+        if ($data['auth_mode'] !== $record->setting('auth_mode', 'token')) {
+            $retest = true;
+        }
+        if ($data['auth_mode'] === 'client_credentials' && $retest) {
+            unset($credentials['access_token'], $credentials['token_expires_at']);
+        }
+        if ($data['auth_mode'] === 'token') {
+            unset($credentials['client_id'], $credentials['token_expires_at']);
+        }
+
+        if (($data['push_fulfilments'] ?? false) && ! $record->setting('push_fulfilments', false)) {
+            $retest = true;
+        }
+        if (($data['import_payments'] ?? false) && ! $record->setting('import_payments', false)) {
+            $retest = true; // Register the refund topic when payment imports are enabled.
         }
 
         $record->forceFill([
@@ -372,23 +390,35 @@ final class ActionsController extends Controller
             $request->merge(['shop_domain' => ShopDomain::normalize((string) $request->input('shop_domain', ''))]);
         }
 
+        $request->merge(['auth_mode' => $request->input('auth_mode', $existing?->setting('auth_mode', 'token') ?? 'token')]);
+        $clientMode = $request->input('auth_mode') === 'client_credentials';
         $secret = $existing === null ? 'required' : 'nullable';
+        $tokenRequired = ! $clientMode && ($existing === null || $existing->setting('auth_mode', 'token') !== 'token');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'shop_domain' => $existing === null ? ['required', 'string', 'max:191'] : ['exclude'],
-            'access_token' => [$secret, 'string', 'max:255'],
+            'auth_mode' => ['required', Rule::in(['token', 'client_credentials'])],
+            'client_id' => [$clientMode && ! $existing?->hasCredential('client_id') ? 'required' : 'nullable', 'string', 'max:255'],
+            'access_token' => [$tokenRequired ? 'required' : 'nullable', 'string', 'max:255'],
             'webhook_secret' => [$secret, 'string', 'max:255'],
             'stock_source' => ['required', Rule::in(SyncPolicy::STOCK_SOURCES)],
             'product_source' => ['required', Rule::in(SyncPolicy::PRODUCT_SOURCES)],
             'import_orders' => ['required', 'boolean'],
             'push_fulfilments' => ['nullable', 'boolean'],
+            'import_payments' => ['nullable', 'boolean'],
+
             'import_test_orders' => ['nullable', 'boolean'],
-            'orders_since' => ['nullable', 'date'],
+            'orders_since' => ['required_with:history_before', 'nullable', 'date'],
+            'history_before' => ['nullable', 'date', 'after_or_equal:orders_since', 'before_or_equal:today'],
         ]);
 
         if (($data['push_fulfilments'] ?? false) && ! FulfilmentPush::supported()) {
             throw ValidationException::withMessages(['push_fulfilments' => 'Update Inventoros to a version with shipment notification ownership before enabling this option.']);
+        }
+
+        if (($data['import_payments'] ?? false) && ! Payments::supported()) {
+            throw ValidationException::withMessages(['import_payments' => 'Update Inventoros core to enable imported-payment records.']);
         }
 
         if ($existing === null && ! ShopDomain::valid($data['shop_domain'])) {

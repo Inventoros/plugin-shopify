@@ -33,6 +33,9 @@ final class FulfilmentPush
     public static function connectionFor(Shipment $shipment): ?Connection
     {
         $order = Core::orders((int) $shipment->organization_id)->find($shipment->order_id);
+        if ($order === null || $order->stock_committed === false || ($order->metadata['shopify']['historical'] ?? false)) {
+            return null;
+        }
         $id = $order?->metadata['shopify']['connection_id'] ?? null;
         $connection = $id ? Connection::forOrganization((int) $shipment->organization_id)->find($id) : null;
         if ($connection === null || $connection->status === Connection::DISCONNECTED || ! SyncPolicy::for($connection)->pushesFulfilments()) {

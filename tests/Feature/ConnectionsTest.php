@@ -62,7 +62,7 @@ final class ConnectionsTest extends TestCase
         $this->assertStringNotContainsString(self::TOKEN, $raw, 'encrypted at rest');
         $this->assertStringNotContainsString(self::SECRET, $raw);
 
-        $this->assertSame(['ORDERS_CREATE', 'ORDERS_UPDATED', 'ORDERS_CANCELLED', 'PRODUCTS_CREATE', 'PRODUCTS_UPDATE', 'INVENTORY_LEVELS_UPDATE', 'APP_UNINSTALLED'], $this->shopify->subscriptions);
+        $this->assertSame(['ORDERS_CREATE', 'ORDERS_UPDATED', 'ORDERS_CANCELLED', 'PRODUCTS_CREATE', 'PRODUCTS_UPDATE', 'INVENTORY_LEVELS_UPDATE', 'APP_UNINSTALLED', 'REFUNDS_CREATE'], $this->shopify->subscriptions);
         $callback = collect($this->shopify->calls)->firstWhere(0, 'subscribeWebhook')[1][1];
         $this->assertSame('https://inventory.example.com/webhooks/plugins/shopify/'.$connection->id, $callback);
         $this->assertSame(2, Mapping::query()->where('entity', 'location')->count(), 'locations read after the test');

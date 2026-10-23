@@ -60,7 +60,7 @@ The plugin needs the Inventoros **queue worker** and **scheduler** running (`sho
 
 ## Set up a store
 
-In short: create a custom app in the Shopify admin with the scopes `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_locations` and `read_orders`, install it, then paste its Admin API access token and API secret key under **Shopify > Connect a store**. Map locations to warehouses, run a full sync and confirm the SKU suggestions.
+Install a Shopify app with the scopes `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_locations` and `read_orders`, then connect under **Shopify > Connect a store** using client credentials for an app and store in your own Shopify organization, or an existing Admin API access token and API secret key. Map locations to warehouses, run a full sync and confirm the SKU suggestions.
 
 The step-by-step guide, with what each status means: **[docs/setup.md](docs/setup.md)**. How orders, stock, products, webhooks and retries behave: **[docs/sync.md](docs/sync.md)**.
 
@@ -94,11 +94,11 @@ Admins hold both. On Inventoros versions without plugin permissions they fall ba
 - Routes follow the plugin route namespace: names `plg.shopify.*`, pages and actions under `/p/shopify/` (the overview moved from `/shopify` to `/p/shopify` in 1.0.1; update bookmarks). The webhook address, `/webhooks/plugins/shopify/{connection}`, is unchanged, so subscriptions registered by 1.0.0 keep delivering and nothing needs re-registering.
 - The sidebar item is translated on cores that translate plugin menu items (`label_key`).
 - Known limitations and SDK gaps:
-  - Orders commit Inventoros stock when imported. Cores with reservations exclude local holds from pushed availability; older releases do not provide reservation support.
+  - Orders take stock when imported. External Shopify checkout reservations are not created in Inventoros before the order webhook arrives.
   - On cores with variant location stock, each variant syncs its own bins per mapped warehouse. Older cores retain primary-location variant sync. Local and global stock holds reduce pushed availability; warehouse quantities share a single SKU availability budget, allocated primary location first.
   - On cores before Inventoros#254, `OrderService::cancel()` takes its actor from the signed-in user, so the plugin signs in the connection's user for that one call when it cancels in a background job. Newer cores take the actor as a parameter and nobody is signed in.
-  - Optional shipment fulfilment and tracking push is available on cores with shipment notification ownership. Refunds and order edits after import are not applied.
-  - No public OAuth app yet (custom app tokens only); see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
+  - Optional shipment fulfilment and tracking push is available on cores with shipment notification ownership; order edits after import are not applied. Completed payment/refund records can be imported with the optional ledger setting.
+  - Public multi-merchant OAuth installation is not implemented; see [docs/setup.md](docs/setup.md#7-future-a-public-app-with-oauth).
 
 ## Develop and test
 
@@ -132,12 +132,94 @@ README screenshots: `SCREENSHOTS=1 npx playwright test -c plugins/shopify/e2e/pl
 
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
+### GraphQL page sizes and rate limits
+
+Catalog and order reads use small parent pages and finish nested variant, order
+line and inventory-location connections before returning a record. Large
+products or orders are not silently truncated. A missing/repeated cursor refuses
+partial data. Read-only requests can wait on the same page up to three times,
+with a total wait of at most 30 seconds; longer throttles return to the existing
+queue retry policy. Mutations keep their existing idempotency and queue retries.
+
+Query shapes are bounded below Shopify's default 1,000-point single-query limit.
+Shopify can assign field costs, so response throttle metadata remains authoritative.
+
+### Client credentials and missing scopes
+
+Choose **App client credentials** for apps and stores in the same Shopify
+organization. Enter the app client ID and API secret key (its client secret).
+The server exchanges these for an expiring token, keeps it encrypted alongside
+its expiry, and renews it two minutes before expiration before each API request, including later pages of an already-running client.
+A connection-row lock prevents concurrent workers from minting duplicate tokens.
+Manual tokens remain supported; they are never replaced automatically.
+
+Connection tests name missing scopes for the enabled sync directions. Updating
+app permissions may require reinstalling/reauthorizing the app before testing
+again. Secrets and client IDs are write-only and excluded from validation-session
+old input. Failed token exchanges report sanitized errors without provider bodies.
+No OAuth redirect/authorization-code flow is provided by this option.
+
+See [Shopify client credentials](https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant)
+and [token lifetimes](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens).
+
+### Historical order backfills
+
+An optional **Import orders before this date as history** cutoff separates past
+sales from new stock-moving orders. Set the import start date to the earliest
+order you want, select the history cutoff, test the connection, then run a full
+sync. Dates use UTC. Shopify access beyond 60 days requires approved
+`read_all_orders` access as well as order access; connection tests name it when
+an older start date is configured.
+
+Orders before the cutoff use core's historical import path: no stock/bin/serial
+allocation, reservations, approval requests or new-order announcements. Fulfilled
+orders are recorded as shipped, cancelled orders as cancelled, and other orders
+as pending; exact remote statuses remain in metadata. No shipments are created.
+Subsequent updates and cancellations remain historical even if the cutoff changes,
+and never restock the goods. Orders on/after the cutoff keep the normal stock path.
+
+Variant mappings are still required. Orders skipped by the start-date filter in
+this version can be revisited as history after changing the range. Manually ignored
+records and ignored records with no recorded reason stay ignored. Existing live
+orders are never converted into history by changing a setting.
+
+### Payment and refund records
+
+Enable **Record Shopify payments and refunds** after reconciling any manual
+payment entries. This optional setting is off by default and requires core's
+`OrderPaymentService::recordImported()` API (core PR Inventoros/Inventoros#305).
+Older cores retain all existing sync features and show an upgrade hint instead
+of enabling payment import. Enabling the setting retests the connection and
+registers the refund webhook; scheduled order reconciliation also updates it.
+
+Only successful sales, captures and refunds create ledger records. Pending or
+failed transactions and uncaptured authorizations create no receipts. Amounts
+and dates come from Shopify transactions in shop currency; a currency mismatch
+is refused. There are no calls to capture, charge or refund money in Shopify.
+Payment status and balances are derived by core from the imported ledger, never
+from a Shopify status label. Actual overpayments remain visible as overpayments.
+
+Provider transaction IDs map to core payment IDs, so repeated webhooks/resyncs
+add nothing twice. Conflicting transaction changes and missing mapped payments
+need review. Manual voids remain voided. Active manual/unrelated payment rows
+block automatic import until reconciled or voided to prevent double counting.
+Refunds cannot exceed recorded receipts. Historical imports use the same ledger
+path silently, including cancelled orders; live imports announce core payment
+hooks only after commit. Importing financial records does not restock returns.
+
+The API reader checks the exact transaction count and refuses incomplete lists
+or orders with more than 100 transactions for manual review. It does not
+silently import a subset. Financial records and new-order creation are atomic;
+an invalid transaction leaves no partial order/payment ledger.
+
 ## Shipment fulfilment and tracking
 
-After upgrading the core with shipment notification ownership, grant the custom app `read_merchant_managed_fulfillment_orders` and `write_merchant_managed_fulfillment_orders`, then enable **Push shipments and tracking to Shopify** in the connection settings. This is off by default. Map each ship-from warehouse to exactly one Shopify location.
+After upgrading the core with shipment notification ownership, grant the custom app `read_merchant_managed_fulfillment_orders` and `write_merchant_managed_fulfillment_orders`, plus `write_inventory` for destination activation, then enable **Push shipments and tracking to Shopify** in the connection settings. This is off by default. Map each ship-from warehouse to exactly one Shopify location.
 
 Newly imported order lines retain their exact Shopify line ids. When an Inventoros shipment is marked shipped, queued work fulfils only those shipped quantities, includes tracking, and lets Shopify send the shipping email if the customer notification option is enabled. The core email is suppressed for those shipments. Older imported orders without exact line mappings must be fulfilled in Shopify. Shipping never deducts Inventoros stock a second time.
 
 If routing differs, the plugin activates previously unstocked inventory items at the destination, without resetting existing quantities, before moving only the shipment’s fulfilment-order lines. Moves re-read Shopify because order and line ids may change. Fulfilment holds and unsupported service requests stop the push for review. Read pages and definite throttles use the existing delayed retries.
 
 Shopify’s [fulfillmentCreate](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentCreate) does not document a creation idempotency key. The plugin commits a send claim before creation, persists the returned id, and refuses to blindly replay an uncertain response or a killed worker’s claim. Check the failed operation in Sync activity and verify or finish that shipment in Shopify; repeated retries cannot create another fulfilment. This conservative stop also applies to rejected creation responses. [Destination activation](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/inventoryActivate) uses its required idempotency key; [fulfilment-order moves](https://shopify.dev/docs/api/admin-graphql/2026-07/mutations/fulfillmentOrderMove) require the items to be stocked at the destination.
+
+Historical orders and orders that never committed stock are excluded from shipment push. Fulfilment orders and their lines use bounded, complete read pages; missing/repeated cursors stop partial data before any shipment mutation.

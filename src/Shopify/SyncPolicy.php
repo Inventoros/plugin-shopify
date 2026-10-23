@@ -29,12 +29,15 @@ final class SyncPolicy
     public const PRODUCT_SOURCES = ['shopify', 'inventoros'];
 
     public const DEFAULTS = [
+        'auth_mode' => 'token',
         'stock_source' => 'inventoros',
         'product_source' => 'shopify',
         'import_orders' => true,
         'push_fulfilments' => false,
+        'import_payments' => false,
         'import_test_orders' => false,
         'orders_since' => null,
+        'history_before' => null,
         'push_delay_seconds' => 10,
     ];
 
@@ -53,6 +56,10 @@ final class SyncPolicy
     {
         $settings = array_merge(self::DEFAULTS, array_intersect_key($current, self::DEFAULTS));
 
+        if (in_array($input['auth_mode'] ?? null, ['token', 'client_credentials'], true)) {
+            $settings['auth_mode'] = $input['auth_mode'];
+        }
+
         if (in_array($input['stock_source'] ?? null, self::STOCK_SOURCES, true)) {
             $settings['stock_source'] = $input['stock_source'];
         }
@@ -61,7 +68,7 @@ final class SyncPolicy
             $settings['product_source'] = $input['product_source'];
         }
 
-        foreach (['import_orders', 'import_test_orders', 'push_fulfilments'] as $flag) {
+        foreach (['import_orders', 'import_test_orders', 'push_fulfilments', 'import_payments'] as $flag) {
             if (array_key_exists($flag, $input)) {
                 $settings[$flag] = (bool) $input[$flag];
             }
@@ -69,6 +76,10 @@ final class SyncPolicy
 
         if (array_key_exists('orders_since', $input)) {
             $settings['orders_since'] = $input['orders_since'] ?: null;
+        }
+
+        if (array_key_exists('history_before', $input)) {
+            $settings['history_before'] = $input['history_before'] ?: null;
         }
 
         return $settings;
@@ -104,6 +115,11 @@ final class SyncPolicy
         return (bool) $this->settings['import_orders'];
     }
 
+    public function importsPayments(): bool
+    {
+        return (bool) $this->settings['import_payments'];
+    }
+
     public function importsTestOrders(): bool
     {
         return (bool) $this->settings['import_test_orders'];
@@ -112,6 +128,11 @@ final class SyncPolicy
     public function ordersSince(): ?string
     {
         return $this->settings['orders_since'];
+    }
+
+    public function historyBefore(): ?string
+    {
+        return $this->settings['history_before'];
     }
 
     public function pushDelay(): int

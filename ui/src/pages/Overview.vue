@@ -16,6 +16,7 @@ const props = defineProps({
     title: { type: String, default: 'Shopify' },
     connections: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
+    supportsPaymentImport: { type: Boolean, default: false },
     apiVersion: { type: String, default: '' },
     defaults: { type: Object, default: () => ({}) },
     urls: { type: Object, required: true },
@@ -54,7 +55,7 @@ const disconnect = (connection) => {
                         <h2 class="shopify-title">{{ t('overview.connect') }}</h2>
                         <p class="shopify-muted">{{ t('overview.setupHint') }}</p>
                     </div>
-                    <ConnectionForm :action="urls.connections" :defaults="defaults" @done="adding = false" />
+                    <ConnectionForm :supports-payments="supportsPaymentImport" :action="urls.connections" :defaults="defaults" @done="adding = false" />
                 </div>
             </Card>
 
@@ -120,7 +121,7 @@ const disconnect = (connection) => {
                         </div>
                         <div class="shopify-field">
                             <span class="shopify-label">{{ t('connection.credentials') }}</span>
-                            <span>{{ connection.has_access_token && connection.has_webhook_secret ? t('connection.credentialsSet') : t('connection.credentialsMissing') }}</span>
+                            <span>{{ (connection.settings.auth_mode === 'client_credentials' ? connection.has_client_id : connection.has_access_token) && connection.has_webhook_secret ? t('connection.credentialsSet') : t('connection.credentialsMissing') }}</span>
                         </div>
                     </div>
 
@@ -147,6 +148,7 @@ const disconnect = (connection) => {
                         v-if="editing === connection.id"
                         :action="`${urls.actions}/connections/${connection.id}`"
                         :connection="connection"
+                        :supports-payments="supportsPaymentImport"
                         @done="editing = null"
                     />
                 </div>

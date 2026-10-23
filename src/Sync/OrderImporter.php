@@ -52,6 +52,7 @@ final class OrderImporter
         private readonly Locations $locations,
         private readonly SyncRecorder $recorder,
         private readonly OrderService $orders,
+        private readonly Payments $payments,
     ) {}
 
     public static function reference(Connection $connection, string $orderId): string
@@ -72,6 +73,9 @@ final class OrderImporter
 
         $policy = SyncPolicy::for($connection);
         $updatedAt = $this->time($order['updated_at'] ?? null);
+        $createdAt = $this->time($order['created_at'] ?? null);
+        $historical = $policy->historyBefore() !== null && $createdAt !== null
+            && $createdAt->lt(Carbon::parse($policy->historyBefore())->startOfDay());
         $label = $order['name'] !== '' ? $order['name'] : "#{$id}";
 
         $existing = $this->mappings->find($connection, self::ENTITY, $id);
@@ -85,7 +89,7 @@ final class OrderImporter
             return $this->update($connection, $existing, $order, $updatedAt, $label, $run);
         }
 
-        if ($existing !== null && $existing->status === Mapping::IGNORED) {
+        if ($existing !== null && $existing->status === Mapping::IGNORED && ! ($historical && $existing->meta('ignored_before_start', false))) {
             $this->mappings->touch($existing, $updatedAt);
 
             return 'skipped';
@@ -100,22 +104,24 @@ final class OrderImporter
         }
 
         $since = $policy->ordersSince();
-        $createdAt = $this->time($order['created_at'] ?? null);
+        if ($policy->historyBefore() !== null && $createdAt === null) {
+            throw new PermanentError('This order has no creation date; refusing to guess whether it should affect current stock.');
+        }
         if ($since !== null && $createdAt !== null && $createdAt->lt(Carbon::parse($since)->startOfDay())) {
             return $this->ignore($connection, $id, $label, $updatedAt, "placed before {$since}", $run);
         }
 
-        if (($order['cancelled_at'] ?? null) !== null) {
+        if (! $historical && ($order['cancelled_at'] ?? null) !== null) {
             return $this->ignore($connection, $id, $label, $updatedAt, 'cancelled before it was imported', $run);
         }
 
-        return $this->create($connection, $id, $order, $updatedAt, $label, $run);
+        return $this->create($connection, $id, $order, $updatedAt, $label, $run, $historical);
     }
 
     /**
      * @param  array<string, mixed>  $order
      */
-    private function create(Connection $connection, string $id, array $order, ?Carbon $updatedAt, string $label, ?SyncRun $run): string
+    private function create(Connection $connection, string $id, array $order, ?Carbon $updatedAt, string $label, ?SyncRun $run, bool $historical = false): string
     {
         $actor = Core::actor($connection);
         [$items, $skippedLines] = $this->items($connection, $order, $label);
@@ -124,11 +130,12 @@ final class OrderImporter
             return $this->ignore($connection, $id, $label, $updatedAt, 'no line items that ship from stock', $run);
         }
 
+        $transactions = $this->payments->read($connection, $id);
         $reference = self::reference($connection, $id);
         $mapping = $this->mappings->remember($connection, self::ENTITY, $id, ['external_label' => $label]);
 
         try {
-            $created = DB::transaction(function () use ($connection, $mapping, $reference, $order, $items, $actor, $label) {
+            $created = DB::transaction(function () use ($connection, $mapping, $reference, $order, $items, $actor, $label, $historical, $transactions) {
                 // Serialize concurrent imports of the same order on its mapping row.
                 $locked = Mapping::query()->whereKey($mapping->id)->lockForUpdate()->first();
 
@@ -143,7 +150,20 @@ final class OrderImporter
                     return null;
                 }
 
-                $created = $this->orders->create($this->orderData($connection, $order, $items, $reference, $label), $actor, 'shopify');
+                $data = $this->orderData($connection, $order, $items, $reference, $label);
+                if ($historical) {
+                    $data['status'] = $this->historicalStatus($order)->value;
+                    $data['approval_status'] = 'not_required';
+                    $data['metadata']['shopify']['historical'] = true;
+                    $data['notes'] = 'Historical Shopify import: '.$label.'. No current stock was changed.';
+                }
+                $created = $this->orders->create($data, $actor, 'shopify', ! $historical, false);
+                if (! $historical) {
+                    // Announce the complete aggregate only after order, payment
+                    // records and mapping have all committed successfully.
+                    DB::afterCommit(fn () => do_action('order_created', $created->refresh()->load('items'), $actor));
+                }
+                $this->payments->sync($connection, $created, $transactions);
                 $createdLines = $created->items()->orderBy('id')->get();
                 if ($createdLines->count() !== count($items)) {
                     throw new PermanentError('The imported order lines changed during creation; exact fulfilment mapping is not possible.');
@@ -176,7 +196,7 @@ final class OrderImporter
         if ($created === null) {
             $this->log($connection, $run, 'info', "Order {$label} was already imported.", $id, $mapping->internal_id, 'duplicate');
 
-            return 'unchanged';
+            return $this->update($connection, $mapping->refresh(), $order, $updatedAt, $label, $run);
         }
 
         foreach ($skippedLines as $line) {
@@ -185,7 +205,9 @@ final class OrderImporter
 
         $this->log($connection, $run, 'info', "Imported order {$label} as {$created->order_number}.", $id, (int) $created->id, 'import_order');
 
-        Events::orderImported($connection, $created, $id, $label);
+        if (! $historical) {
+            Events::orderImported($connection, $created, $id, $label);
+        }
 
         return 'created';
     }
@@ -204,21 +226,35 @@ final class OrderImporter
             return 'skipped';
         }
 
-        $outcome = 'unchanged';
+        $transactions = $this->payments->read($connection, (string) $order['id']);
 
-        if (($order['cancelled_at'] ?? null) !== null && $core->status !== OrderStatus::CANCELLED) {
-            try {
-                Core::cancelOrder($this->orders, $core, Core::actor($connection));
-                $outcome = 'cancelled';
-                $this->log($connection, $run, 'info', "Cancelled order {$core->order_number} (Shopify {$label}) and restocked it.", (string) $order['id'], (int) $core->id, 'cancel_order');
-            } catch (InvalidStateException $error) {
-                $this->log($connection, $run, 'warning', "Shopify cancelled {$label}, but Inventoros order {$core->order_number} cannot be cancelled: {$error->getMessage()}", (string) $order['id'], (int) $core->id, 'cancel_order');
+        return DB::transaction(function () use ($connection, $mapping, $order, $updatedAt, $label, $run, $transactions) {
+            $lockedMapping = Mapping::whereKey($mapping->id)->lockForUpdate()->firstOrFail();
+            if ($this->mappings->isStale($lockedMapping, $updatedAt)) {
+                return 'stale';
             }
-        }
+            $core = Core::orders((int) $connection->organization_id)->whereKey($lockedMapping->internal_id)->lockForUpdate()->firstOrFail();
+            $this->payments->sync($connection, $core, $transactions);
+            $outcome = 'unchanged';
+            if ($core->metadata['shopify']['historical'] ?? false) {
+                $core->forceFill(['status' => $this->historicalStatus($order)])->save();
+            } elseif (($order['cancelled_at'] ?? null) !== null && $core->status !== OrderStatus::CANCELLED) {
+                try {
+                    Core::cancelOrder($this->orders, $core, Core::actor($connection));
+                    $outcome = 'cancelled';
+                    $this->log($connection, $run, 'info', "Cancelled order {$core->order_number} (Shopify {$label}) and restocked it.", (string) $order['id'], (int) $core->id, 'cancel_order');
+                } catch (InvalidStateException $error) {
+                    $this->log($connection, $run, 'warning', "Shopify cancelled {$label}, but Inventoros order {$core->order_number} cannot be cancelled: {$error->getMessage()}", (string) $order['id'], (int) $core->id, 'cancel_order');
+                }
+            }
+            $metadata = $core->metadata ?? [];
+            $metadata['shopify']['financial_status'] = $order['financial_status'] ?? null;
+            $metadata['shopify']['fulfillment_status'] = $order['fulfillment_status'] ?? null;
+            $core->forceFill(['metadata' => $metadata])->save();
+            $this->mappings->touch($lockedMapping, $updatedAt);
 
-        $this->mappings->touch($mapping, $updatedAt);
-
-        return $outcome;
+            return $outcome;
+        });
     }
 
     /**
@@ -298,6 +334,7 @@ final class OrderImporter
             'external_id' => (string) $order['id'],
             'external_reference' => $reference,
             'metadata' => [
+                'channel_order_number' => $label,
                 'shopify' => [
                     'connection_id' => $connection->id,
                     'shop' => $connection->shop_domain,
@@ -312,9 +349,15 @@ final class OrderImporter
         ], fn ($value) => $value !== null);
     }
 
+    private function historicalStatus(array $order): OrderStatus
+    {
+        return ($order['cancelled_at'] ?? null) !== null ? OrderStatus::CANCELLED
+            : (($order['fulfillment_status'] ?? '') === 'fulfilled' ? OrderStatus::SHIPPED : OrderStatus::PENDING);
+    }
+
     private function ignore(Connection $connection, string $id, string $label, ?Carbon $updatedAt, string $why, ?SyncRun $run): string
     {
-        $mapping = $this->mappings->remember($connection, self::ENTITY, $id, ['external_label' => $label, 'status' => Mapping::IGNORED]);
+        $mapping = $this->mappings->remember($connection, self::ENTITY, $id, ['external_label' => $label, 'status' => Mapping::IGNORED, 'meta' => ['ignored_before_start' => str_starts_with($why, 'placed before ')]]);
         if ($mapping->status !== Mapping::IGNORED && $mapping->internal_id === null) {
             $this->mappings->mark($mapping, Mapping::IGNORED);
         }

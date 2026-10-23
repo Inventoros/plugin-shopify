@@ -45,7 +45,7 @@ final class HttpClientTest extends TestCase
 
         $shop = $this->client()->shop();
 
-        $this->assertSame(['id' => '77001', 'name' => 'Acme Store', 'domain' => 'acme-store.myshopify.com', 'currency' => 'USD', 'plan' => 'Basic'], $shop);
+        $this->assertSame(['id' => '77001', 'name' => 'Acme Store', 'domain' => 'acme-store.myshopify.com', 'currency' => 'USD', 'plan' => 'Basic', 'scopes' => []], $shop);
         Http::assertSent(fn (Request $request) => $request->url() === self::ENDPOINT
             && $request->hasHeader('X-Shopify-Access-Token', self::TOKEN)
             && ! $request->hasHeader('Authorization'));

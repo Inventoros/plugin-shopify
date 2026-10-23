@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Inventoros\Plugins\Shopify\Shopify;
 
+use Carbon\Carbon;
 use Inventoros\Plugins\Shopify\Kit\Connections\ConnectionTester;
 use Inventoros\Plugins\Shopify\Kit\Connections\TestResult;
 use Inventoros\Plugins\Shopify\Kit\Exceptions\IntegrationException;
@@ -24,6 +25,31 @@ final class ShopifyConnectionTester implements ConnectionTester
             $shop = $this->clients->make($connection)->shop();
         } catch (IntegrationException $error) {
             return TestResult::failed($error->getMessage());
+        }
+
+        $policy = SyncPolicy::for($connection);
+        $required = ['read_products', 'read_inventory', 'read_locations'];
+        if ($policy->pushesStock()) {
+            $required[] = 'write_inventory';
+        }
+        if ($policy->pushesProducts()) {
+            $required[] = 'write_products';
+        }
+        if ($policy->importsOrders()) {
+            $required[] = 'read_orders';
+            if ($policy->ordersSince() !== null && Carbon::parse($policy->ordersSince())->lt(now()->subDays(60))) {
+                $required[] = 'read_all_orders';
+            }
+        }
+        if ($policy->pushesFulfilments()) {
+            $required = array_merge($required, ['read_orders', 'read_merchant_managed_fulfillment_orders', 'write_merchant_managed_fulfillment_orders', 'write_inventory']);
+        }
+        $required = array_values(array_unique($required));
+        $granted = $shop['scopes'] ?? [];
+        $missing = array_values(array_filter($required, fn ($scope) => ! in_array($scope, $granted, true)
+            && ! (str_starts_with($scope, 'read_') && in_array('write_'.substr($scope, 5), $granted, true))));
+        if ($missing !== []) {
+            return TestResult::failed('Missing Shopify access scopes: '.implode(', ', $missing).'. Update the app permissions and reinstall or reauthorize it, then test again.');
         }
 
         if (! $connection->hasCredential('webhook_secret')) {
