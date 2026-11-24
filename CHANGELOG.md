@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. The format follows [Keep
 
 ## [Unreleased]
 
+### Added
+
+- Kits on Inventoros 2.7 and newer, which sell a kit from its components. A kit mapped to a Shopify variant is pushed how many kits its components can make (on hand less reservations, the number Inventoros sells against), at the primary or "all stock" location. It is pushed again whenever one of its components' stock or reservations changes, and the 15-minute scheduled sync re-pushes mapped kits, so a change to a kit's component list reaches Shopify within one interval. A Shopify order for a kit takes its components through core. One Inventoros cannot fill is held back with the short component named, like any short order. When Shopify owns stock, its level for a kit is never written back, because the kit keeps no stock of its own. Older cores push a kit's own stock as before.
+
 ## [1.4.0] - Unreleased
 
 ### Added
