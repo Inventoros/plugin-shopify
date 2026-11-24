@@ -19,6 +19,7 @@ use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Sync\Catalog;
 use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
+use Inventoros\Plugins\Shopify\Sync\KitStock;
 use Inventoros\Plugins\Shopify\Sync\ProductPush;
 use Throwable;
 
@@ -35,7 +36,9 @@ final class Listeners
 
     /**
      * stock_changed($product, $variant, $change): queue a stock push for
-     * every connection that owns stock in Inventoros and maps this item.
+     * every connection that owns stock in Inventoros and maps this item,
+     * and for every mapped kit that has this product as a component (how
+     * many kits can be made just changed; see KitStock).
      *
      * @param  array<string, mixed>  $change
      */
@@ -46,17 +49,38 @@ final class Listeners
         }
 
         self::guard(function () use ($product, $variant) {
-            [$type, $id] = $variant instanceof ProductVariant ? ['variant', (int) $variant->id] : ['product', (int) $product->id];
+            $organizationId = (int) $product->organization_id;
+            $connections = self::connected($organizationId);
+            if ($connections->isEmpty()) {
+                return;
+            }
 
-            foreach (self::connected((int) $product->organization_id) as $connection) {
+            $subjects = [$variant instanceof ProductVariant ? ['variant', (int) $variant->id] : ['product', (int) $product->id]];
+            if (! $variant instanceof ProductVariant) {
+                foreach (KitStock::kitsUsing($organizationId, [(int) $product->id]) as $kitId) {
+                    $subjects[] = ['product', $kitId];
+                }
+            }
+
+            foreach ($connections as $connection) {
                 $policy = SyncPolicy::for($connection);
 
-                if (! $policy->pushesStock() || ! self::isMapped($connection, $type, $id)) {
+                if (! $policy->pushesStock()) {
                     continue;
                 }
 
-                app(Outbox::class)->put($connection, InventoryPush::KIND, InventoryPush::subject($type, $id), [], $policy->pushDelay());
-                PushInventory::dispatch($connection->id)->delay(now()->addSeconds($policy->pushDelay()));
+                $queued = false;
+                foreach ($subjects as [$type, $id]) {
+                    if (! self::isMapped($connection, $type, $id)) {
+                        continue;
+                    }
+                    app(Outbox::class)->put($connection, InventoryPush::KIND, InventoryPush::subject($type, $id), [], $policy->pushDelay());
+                    $queued = true;
+                }
+
+                if ($queued) {
+                    PushInventory::dispatch($connection->id)->delay(now()->addSeconds($policy->pushDelay()));
+                }
             }
         });
     }

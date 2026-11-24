@@ -106,7 +106,9 @@ final class InventoryPull
             }
 
             $product = Core::products($connection->organization_id)->lockForUpdate()->find($item->internal_id);
-            if (! $product instanceof Product) {
+            // A kit sold from its components keeps no stock of its own, so
+            // Shopify's count for it is never written back (see KitStock).
+            if (! $product instanceof Product || KitStock::isKit($product)) {
                 return 'skipped';
             }
 

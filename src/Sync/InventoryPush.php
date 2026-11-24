@@ -30,6 +30,9 @@ use Inventoros\Plugins\Shopify\Support\Core;
  *   product without any bins      its total, at the primary location only
  *   variant                       its own bins per warehouse on capable cores;
  *                                 primary only on older releases
+ *   kit (core 2.7+)               how many its components can make, at the
+ *                                 primary or "all stock" location only (see
+ *                                 KitStock)
  * Reservations reduce availability. Negative stock is pushed as 0.
  */
 final class InventoryPush
@@ -144,13 +147,16 @@ final class InventoryPush
             return [];
         }
         $stock = app(InventoryStock::class);
-        $budget = max(0, (int) $target->stock - $stock->held($target));
+        // A kit sold from its components has no stock or bins of its own:
+        // its availability is placed like an unbinned product's.
+        $kit = KitStock::isKit($target);
+        $budget = $kit ? KitStock::available($target) : max(0, (int) $target->stock - $stock->held($target));
         if ($type === 'variant' && ! InventoryStock::supportsVariantBins()) {
             return $primary === null ? [] : [$base + ['location_id' => $primary->external_id, 'location_label' => (string) $primary->external_label, 'quantity' => $budget]];
         }
-        $free = $stock->freeByWarehouse($target);
+        $free = $kit ? collect() : $stock->freeByWarehouse($target);
         // Unassigned stock retains the historic primary-location fallback.
-        $unassigned = $stock->rows($target)->isEmpty();
+        $unassigned = $kit || $stock->rows($target)->isEmpty();
         foreach ($locations->sortBy(fn ($location) => [$location->id === $primary?->id ? 0 : 1, $location->id]) as $location) {
             if ($location->internal_type === Locations::ALL_STOCK) {
                 $quantity = $budget;

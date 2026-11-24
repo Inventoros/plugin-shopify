@@ -14,14 +14,18 @@ use Inventoros\Plugins\Shopify\Kit\Models\Connection;
 use Inventoros\Plugins\Shopify\Kit\Models\WebhookInboxEntry;
 use Inventoros\Plugins\Shopify\Kit\Outbox\Outbox;
 use Inventoros\Plugins\Shopify\Sync\FulfilmentPush;
+use Inventoros\Plugins\Shopify\Shopify\SyncPolicy;
 use Inventoros\Plugins\Shopify\Sync\InventoryPush;
+use Inventoros\Plugins\Shopify\Sync\KitStock;
 use Inventoros\Plugins\Shopify\Sync\ProductPush;
 
 /**
  * shopify:sync, every 15 minutes: for each connection that can sync,
  * queue an incremental sync (products and orders changed since the
  * cursor), re-queue inbox entries left unprocessed (a worker died, the
- * connection was paused) and drain due outbox rows. Only queues work.
+ * connection was paused), re-push mapped kits when Inventoros owns stock
+ * (a kit's component list can change without any stock moving; see
+ * KitStock) and drain due outbox rows. Only queues work.
  */
 final class SyncCommand extends Command
 {
@@ -55,6 +59,10 @@ final class SyncCommand extends Command
 
             foreach ($waiting as $entryId) {
                 ProcessWebhook::dispatch($connection->id, (int) $entryId);
+            }
+
+            if (SyncPolicy::for($connection)->pushesStock()) {
+                KitStock::queueMapped($connection);
             }
 
             if ($outbox->hasDue($connection, InventoryPush::KIND)) {
